@@ -1,0 +1,11 @@
+*.jl.*.cov
+*.jl.cov
+*.jl.mem
+/bin/
+/deps/build*/
+/deps/install*/
+/docs/build/
+/gh-pages/
+/local/*
+/Manifest.toml
+/src/libraryfuncdictionary.jl

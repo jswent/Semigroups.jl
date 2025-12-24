@@ -1,0 +1,25 @@
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLambdasOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+BinPackArguments: true
+BinPackParameters: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterFunction: true
+    AfterControlStatement: Always
+    BeforeElse: true
+    BeforeLambdaBody: false
+ColumnLimit: 90
+Cpp11BracedListStyle: true
+IndentCaseLabels: true
+IndentWidth: 2
+LambdaBodyIndentation: OuterScope
+MaxEmptyLinesToKeep: 2
+PointerBindsToType: Middle
+SpacesBeforeTrailingComments: 4
+UseTab: Never
+SortIncludes: false
