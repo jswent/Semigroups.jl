@@ -3,6 +3,7 @@
 *.jl.mem
 /bin/
 /deps/build*/
+/deps/build.log
 /deps/install*/
 /docs/build/
 /gh-pages/

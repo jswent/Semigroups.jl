@@ -5,6 +5,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Prevent FindJulia.cmake from running if Julia paths are provided
+if(DEFINED Julia_EXECUTABLE AND DEFINED Julia_INCLUDE_DIRS AND DEFINED Julia_LIBRARY_DIR)
+    set(Julia_FOUND TRUE)
+    message(STATUS "Using provided Julia paths")
+    message(STATUS "  Julia_EXECUTABLE: ${Julia_EXECUTABLE}")
+    message(STATUS "  Julia_INCLUDE_DIRS: ${Julia_INCLUDE_DIRS}")
+    message(STATUS "  Julia_LIBRARY_DIR: ${Julia_LIBRARY_DIR}")
+endif()
+
 # Find JlCxx (CxxWrap C++ library)
 find_package(JlCxx REQUIRED)
 
@@ -32,12 +41,14 @@ target_include_directories(libsemigroups_julia PRIVATE
 # Link directories
 target_link_directories(libsemigroups_julia PRIVATE
     ${LIBSEMIGROUPS_LIBRARY_DIRS}
+    ${Julia_LIBRARY_DIR}
 )
 
 # Link libraries
 target_link_libraries(libsemigroups_julia
     JlCxx::cxxwrap_julia
     ${LIBSEMIGROUPS_LIBRARIES}
+    julia
 )
 
 # Compiler flags from pkg-config
