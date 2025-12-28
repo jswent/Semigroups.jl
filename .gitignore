@@ -1,7 +1,10 @@
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
+.use-clang-format-15
+compile_commands.json
 /bin/
+/deps/.cache
 /deps/build*/
 /deps/build.log
 /deps/install*/
