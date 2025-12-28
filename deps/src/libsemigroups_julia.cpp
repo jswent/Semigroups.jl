@@ -16,7 +16,10 @@ JLCXX_MODULE define_julia_module(jl::Module & mod)
   // Define error handling
   define_errors(mod);
 
-  // Add more definitions here
+  // Define element types
+  define_transf(mod);
+
+  // Add more definitions here (FroidurePin, etc.)
 }
 
 }    // namespace libsemigroups_julia

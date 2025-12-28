@@ -30,6 +30,7 @@ namespace libsemigroups = ::libsemigroups;
 // Forward declarations of binding functions
 void define_constants(jl::Module & mod);
 void define_errors(jl::Module & mod);
+void define_transf(jl::Module & mod);
 
 }    // namespace libsemigroups_julia
 

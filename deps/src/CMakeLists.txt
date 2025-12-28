@@ -34,6 +34,7 @@ add_library(libsemigroups_julia SHARED
     libsemigroups_julia.cpp
     constants.cpp
     errors.cpp
+    transf.cpp
 )
 
 # Include directories

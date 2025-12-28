@@ -18,6 +18,10 @@ using .LibSemigroups
 # Julia-side wrapper files
 include("libsemigroups/constants.jl")
 include("libsemigroups/errors.jl")
+include("libsemigroups/transf.jl")
+
+# High-level element types
+include("elements/transf.jl")
 
 # Module initialization
 function __init__()
@@ -30,5 +34,10 @@ export UNDEFINED, POSITIVE_INFINITY, NEGATIVE_INFINITY, LIMIT_MAX
 export tril, tril_FALSE, tril_TRUE, tril_unknown, tril_to_bool
 export is_undefined, is_positive_infinity, is_negative_infinity, is_limit_max
 export SemigroupsError, have_error, check_error!, clear_errors!, get_and_clear_errors
+
+# Transformation types and functions
+export Transf, PPerm, Perm
+export degree, rank, images, image_set, domain_set
+export left_one, right_one
 
 end # module Semigroups
