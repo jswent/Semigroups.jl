@@ -1,0 +1,42 @@
+name: Formatting
+on: [pull_request, workflow_dispatch]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - name: Install JuliaFormatter
+        run: julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
+      - name: Check formatting
+        run: |
+          julia -e 'using JuliaFormatter; format(".")'
+
+          # Check if any files were modified
+          if [ -n "$(git diff --name-only)" ]; then
+              echo ""
+              echo "============================================================"
+              echo "ERROR: The following files are not properly formatted:"
+              echo "============================================================"
+              git diff --name-only
+              echo ""
+              echo "Required changes:"
+              echo "------------------------------------------------------------"
+              git diff --color=always
+              echo ""
+              echo "============================================================"
+              echo "To fix locally, run:"
+              echo ""
+              echo "  julia -e 'using Pkg; Pkg.add(\"JuliaFormatter\"); using JuliaFormatter; format(\".\")'"
+              echo "============================================================"
+              exit 1
+          else
+              echo "All files are properly formatted"
+          fi

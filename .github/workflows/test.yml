@@ -1,0 +1,81 @@
+name: Run tests
+on: [pull_request, workflow_dispatch]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# needed to allow julia-actions/cache to delete old caches that it has created
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  test:
+    name: "${{ matrix.system.os }}: Version ${{ matrix.julia-version }}"
+    runs-on: ${{ matrix.system.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ["lts", "1", "pre"]
+        system:
+          # TODO: test with x86
+          - {
+              os: ubuntu-latest,
+              arch: default,
+              compiler: ccache g++,
+              coverage: true,
+            }
+          - {
+              os: macOS-latest,
+              arch: default,
+              compiler: ccache clang++,
+              coverage: false,
+            }
+          - {
+              os: macOS-15-latest,
+              arch: default,
+              compiler: ccache clang++,
+              coverage: false,
+            }
+
+    steps:
+      - uses: actions/checkout@v6
+
+        # Setup Julia
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: ${{ matrix.system.arch }}
+      - uses: julia-actions/cache@v2
+
+        # Build libsemigroups using ccache
+      - name: "Setup ccache . . ."
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          update_packager_index: false
+      - name: "macOS only: Install libsemigroups dependencies . . ."
+        if: ${{ startsWith(matrix.system.os, 'macOS') }}
+        run: brew install autoconf automake libtool
+      - name: "Install libsemigroups . . ."
+        run: |
+          git clone --depth 1 --branch main https://github.com/libsemigroups/libsemigroups.git
+          cd libsemigroups
+          ./autogen.sh && ./configure CXX="${{ matrix.system.compiler }}" CXXFLAGS="-O2" --disable-hpcombi && sudo make install -j4
+
+        # Build Semigroups.jl
+      - uses: julia-actions/julia-buildpkg@v1
+        with:
+          precompile: yes
+
+      # Run the tests
+      - uses: julia-actions/julia-runtest@v1
+
+      # Upload coverage
+      - uses: julia-actions/julia-processcoverage@v1
+        if: ${{ matrix.system.coverage && matrix.julia-version == '1' }}
+      - uses: codecov/codecov-action@v5
+        if: ${{ matrix.system.coverage && matrix.julia-version == '1' }}
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}

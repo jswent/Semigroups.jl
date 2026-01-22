@@ -1,18 +1,18 @@
 using Documenter
 using Semigroups
 
-DocMeta.setdocmeta!(Semigroups, :DocTestSetup, :(using Semigroups); recursive=true)
+DocMeta.setdocmeta!(Semigroups, :DocTestSetup, :(using Semigroups); recursive = true)
 
 makedocs(;
-    modules=[Semigroups],
-    sitename="Semigroups.jl",
-    format=Documenter.HTML(;
-        canonical="https://github.com/libsemigroups/Semigroups.jl",
-        edit_link="main",
-        assets=String[],
-        collapselevel=1,
+    modules = [Semigroups],
+    sitename = "Semigroups.jl",
+    format = Documenter.HTML(;
+        canonical = "https://github.com/libsemigroups/Semigroups.jl",
+        edit_link = "main",
+        assets = String[],
+        collapselevel = 1,
     ),
-    pages=[
+    pages = [
         "Home" => "index.md",
         "Package Info" => [
             "Installation" => "package-info/installation.md",
@@ -35,10 +35,7 @@ makedocs(;
         ],
         "Main Algorithms" => ["Overview" => "main-algorithms/index.md"],
     ],
-    warnonly=[:missing_docs],
+    warnonly = [:missing_docs],
 )
 
-deploydocs(
-    repo="github.com/libsemigroups/Semigroups.jl.git",
-    devbranch="main",
-)
+deploydocs(repo = "github.com/libsemigroups/Semigroups.jl.git", devbranch = "main")

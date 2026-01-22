@@ -3,7 +3,7 @@ name: Deploy documentation
 on:
   push:
     branches: [main]
-    tags: ['*']
+    tags: ["*"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,7 +22,7 @@ jobs:
       CXXFLAGS: -fdiagnostics-color -O2
       LD_LIBRARY_PATH: /usr/local/lib
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install system dependencies
         run: |
@@ -54,7 +54,7 @@ jobs:
 
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1'
+          version: "1"
 
       - uses: julia-actions/cache@v2
 

@@ -1,0 +1,60 @@
+# TODO: Uncomment when we know how to fix the linting errors (if they are in fact errors)
+# name: Linting
+# on: [pull_request, workflow_dispatch]
+
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
+
+# # needed to allow julia-actions/cache to delete old caches that it has created
+# permissions:
+#   actions: write
+#   contents: read
+
+# jobs:
+#   check-linting:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v6
+
+#         # Setup Julia
+#       - uses: julia-actions/setup-julia@v2
+#       - uses: julia-actions/cache@v2
+
+#         # Build libsemigroups using ccache
+#       - name: "Setup ccache . . ."
+#         uses: Chocobo1/setup-ccache-action@v1
+#         with:
+#           update_packager_index: false
+#       - name: "Install libsemigroups . . ."
+#         run: |
+#           git clone --depth 1 --branch main https://github.com/libsemigroups/libsemigroups.git
+#           cd libsemigroups
+#           ./autogen.sh && ./configure CXX="ccache g++" CXXFLAGS="-O2" --disable-hpcombi && sudo make install -j4
+
+#         # Build Semigroups.jl
+#       - uses: julia-actions/julia-buildpkg@v1
+#         with:
+#           precompile: yes
+#           project: "."
+
+#         # Lint with JET
+#       - name: Install JET
+#         shell: julia --project=. --color=yes {0}
+#         run: |
+#           import Pkg
+
+#           # Specify the package and the version
+#           p = Pkg.PackageSpec(
+#             name = "JET",
+#             uuid = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b",
+#             version = "0.11",
+#           )
+
+#           # Install the package:
+#           Pkg.add(p)
+#       - name: Lint
+#         shell: julia --project=. --color=yes {0}
+#         run: |
+#           using JET
+#           JET.test_file("src/Semigroups.jl")
