@@ -175,9 +175,34 @@ Base.show(io::IO, ::NegativeInfinityType) = print(io, "NEGATIVE_INFINITY")
 Base.show(io::IO, ::LimitMaxType) = print(io, "LIMIT_MAX")
 
 # tril enum re-exports from LibSemigroups
+
+"""
+    tril
+
+Ternary logic type representing true, false, or unknown values.
+Use `tril_TRUE`, `tril_FALSE`, and `tril_unknown` for the possible values.
+"""
 const tril = LibSemigroups.tril
+
+"""
+    tril_FALSE
+
+The false value of the ternary logic type [`tril`](@ref).
+"""
 const tril_FALSE = LibSemigroups.tril_FALSE
+
+"""
+    tril_TRUE
+
+The true value of the ternary logic type [`tril`](@ref).
+"""
 const tril_TRUE = LibSemigroups.tril_TRUE
+
+"""
+    tril_unknown
+
+The unknown value of the ternary logic type [`tril`](@ref).
+"""
 const tril_unknown = LibSemigroups.tril_unknown
 
 """
