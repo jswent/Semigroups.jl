@@ -9,6 +9,7 @@ compile_commands.json
 /deps/build.log
 /deps/install*/
 /docs/build/
+/docs/Manifest.toml
 /gh-pages/
 /local/*
 /Manifest.toml
