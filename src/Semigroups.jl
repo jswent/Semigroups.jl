@@ -20,6 +20,9 @@ include("libsemigroups/constants.jl")
 include("libsemigroups/errors.jl")
 include("libsemigroups/transf.jl")
 
+# Import error handling utilities
+using .Errors: @wrap_libsemigroups_call
+
 # High-level element types
 include("elements/transf.jl")
 
@@ -33,7 +36,6 @@ end
 export UNDEFINED, POSITIVE_INFINITY, NEGATIVE_INFINITY, LIMIT_MAX
 export tril, tril_FALSE, tril_TRUE, tril_unknown, tril_to_bool
 export is_undefined, is_positive_infinity, is_negative_infinity, is_limit_max
-export SemigroupsError, have_error, check_error!, clear_errors!, get_and_clear_errors
 
 # Transformation types and functions
 export Transf, PPerm, Perm
