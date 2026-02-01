@@ -13,9 +13,6 @@ JLCXX_MODULE define_julia_module(jl::Module & mod)
   // Define constants first (UNDEFINED, POSITIVE_INFINITY, etc.)
   define_constants(mod);
 
-  // Define error handling
-  define_errors(mod);
-
   // Define element types
   define_transf(mod);
 
