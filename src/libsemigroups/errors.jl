@@ -211,11 +211,18 @@ end
 """
 macro wrap_libsemigroups_call(expr)
     return quote
+        local result
+        local translated_error = nothing
         try
-            $(esc(expr))
+            result = $(esc(expr))
         catch ex
-            throw(translate_libsemigroups_error(ex))
+            translated_error = translate_libsemigroups_error(ex)
         end
+        # Throw outside catch block to avoid exception chaining ("caused by")
+        if translated_error !== nothing
+            throw(translated_error)
+        end
+        result
     end
 end
 
