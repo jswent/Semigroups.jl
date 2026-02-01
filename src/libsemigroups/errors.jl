@@ -212,15 +212,19 @@ end
 macro wrap_libsemigroups_call(expr)
     return quote
         local result
-        local translated_error = nothing
+        local caught_ex = nothing
         try
             result = $(esc(expr))
         catch ex
-            translated_error = translate_libsemigroups_error(ex)
+            if parentmodule(Errors).is_debug()
+                # Throw inside catch block to show both translated error and full C++ trace
+                throw(translate_libsemigroups_error(ex))
+            end
+            caught_ex = ex
         end
         # Throw outside catch block to avoid exception chaining ("caused by")
-        if translated_error !== nothing
-            throw(translated_error)
+        if caught_ex !== nothing
+            throw(translate_libsemigroups_error(caught_ex))
         end
         result
     end
