@@ -3,6 +3,39 @@ module Semigroups
 using CxxWrap
 using AbstractAlgebra
 
+# ============================================================================
+# Debug mode
+# ============================================================================
+
+const _debug_mode = Ref(false)
+
+"""
+    enable_debug(val::Bool=true)
+
+Enable or disable debug mode for libsemigroups tracing.
+
+When debug mode is enabled, the full C++ stack trace from libsemigroups/jlcxx
+is shown instead of only the high-level Julia translation.
+
+# Example
+```julia
+Semigroups.enable_debug()       # enable debug mode
+Semigroups.enable_debug(false)  # disable debug mode
+```
+"""
+enable_debug(val::Bool = true) = (_debug_mode[] = val)
+
+"""
+    is_debug() -> Bool
+
+Check if debug mode is enabled for libsemigroups error handling.
+"""
+is_debug() = _debug_mode[]
+
+# ============================================================================
+# Package setup
+# ============================================================================
+
 # Setup and library location
 include("setup.jl")
 
@@ -20,6 +53,9 @@ include("libsemigroups/constants.jl")
 include("libsemigroups/errors.jl")
 include("libsemigroups/transf.jl")
 
+# Import error handling utilities
+using .Errors: LibsemigroupsError, @wrap_libsemigroups_call
+
 # High-level element types
 include("elements/transf.jl")
 
@@ -29,11 +65,14 @@ function __init__()
     LibSemigroups.__init__()
 end
 
+# ============================================================================
 # Exports
+# ============================================================================
+
+export enable_debug, is_debug, LibsemigroupsError
 export UNDEFINED, POSITIVE_INFINITY, NEGATIVE_INFINITY, LIMIT_MAX
 export tril, tril_FALSE, tril_TRUE, tril_unknown, tril_to_bool
 export is_undefined, is_positive_infinity, is_negative_infinity, is_limit_max
-export SemigroupsError, have_error, check_error!, clear_errors!, get_and_clear_errors
 
 # Transformation types and functions
 export Transf, PPerm, Perm

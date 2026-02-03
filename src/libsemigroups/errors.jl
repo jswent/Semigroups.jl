@@ -1,70 +1,111 @@
-# errors.jl - Julia wrappers for libsemigroups error handling
+# errors.jl - Error handling utilities for libsemigroups
 #
-# This file provides Julia-friendly error handling that captures
-# exceptions from the C++ library.
+# This module provides utilities for catching C++ exceptions from libsemigroups
+# and rethrowing them as a Julia-native LibsemigroupsError with the C++ file/line
+# prefix stripped.
 
 """
-    SemigroupsError <: Exception
+    Errors
 
-Exception type for errors originating from libsemigroups.
+Module for wrapping libsemigroups C++ exceptions as `LibsemigroupsError`.
 """
-struct SemigroupsError <: Exception
+module Errors
+
+export LibsemigroupsError, @wrap_libsemigroups_call
+
+# ============================================================================
+# Regex patterns
+# ============================================================================
+
+# Strip prefix: "filename:line:func: message" -> "message"
+const MESSAGE_PREFIX_REGEX = r"^[^:]+:\d+:[^:]+:\s*(.*)$"
+
+# ============================================================================
+# LibsemigroupsError
+# ============================================================================
+
+"""
+    LibsemigroupsError <: Exception
+
+Exception type for errors originating from the libsemigroups C++ library.
+The error message has the C++ source location prefix stripped but is otherwise
+unchanged (including 0-based indexing).
+"""
+struct LibsemigroupsError <: Exception
     msg::String
 end
 
-Base.showerror(io::IO, e::SemigroupsError) = print(io, "SemigroupsError: ", e.msg)
+Base.showerror(io::IO, e::LibsemigroupsError) = print(io, "LibsemigroupsError: ", e.msg)
+
+# ============================================================================
+# Helper functions
+# ============================================================================
 
 """
-    have_error() -> Bool
+    exception_message(ex::Exception) -> String
 
-Check if there are any pending errors from libsemigroups.
+Extract the raw message string from an exception.
 """
-have_error() = LibSemigroups.have_error()
-
-"""
-    get_and_clear_errors() -> String
-
-Get all pending error messages and clear the error log.
-"""
-get_and_clear_errors() = LibSemigroups.get_and_clear_errors()
+exception_message(ex::ErrorException) = ex.msg
+exception_message(ex::Exception) = sprint(showerror, ex)
 
 """
-    clear_errors!()
+    extract_message(full_message::AbstractString) -> String
 
-Clear all pending errors without retrieving them.
-"""
-clear_errors!() = LibSemigroups.clear_error_log()
+Extract the libsemigroups error message from a potentially multi-line C++ exception.
 
+CxxWrap exceptions may contain a full C++ stack trace with the actual error message
+on the last line in the format "filename:line:function: message". This function
+finds that line and strips the prefix, returning only the message.
 """
-    check_error!()
-
-Check if there are pending errors and throw a `SemigroupsError` if so.
-This should be called after operations that might fail.
-"""
-function check_error!()
-    if have_error()
-        msg = get_and_clear_errors()
-        throw(SemigroupsError(msg))
+function extract_message(full_message::AbstractString)
+    # Try the last line first (CxxWrap multi-line stack traces put the message there)
+    lines = split(rstrip(full_message), '\n')
+    for line in Iterators.reverse(lines)
+        m = match(MESSAGE_PREFIX_REGEX, line)
+        if m !== nothing
+            return String(m.captures[1])
+        end
     end
+    return String(full_message)
 end
 
-"""
-    @check_error expr
+# ============================================================================
+# Macro
+# ============================================================================
 
-Execute `expr` and check for errors afterward.
-Throws a `SemigroupsError` if any errors occurred.
+"""
+    @wrap_libsemigroups_call(expr)
+
+Wrap a libsemigroups C++ call to catch exceptions and rethrow them as
+`LibsemigroupsError` with the C++ prefix stripped.
 
 # Example
 ```julia
-@check_error begin
-    # code that might cause errors
+cxx_obj = @wrap_libsemigroups_call begin
+    CxxType(StdVector(images_typed))
 end
 ```
 """
-macro check_error(expr)
-    quote
-        result = $(esc(expr))
-        check_error!()
+macro wrap_libsemigroups_call(expr)
+    return quote
+        local result
+        local caught_ex = nothing
+        try
+            result = $(esc(expr))
+        catch ex
+            if parentmodule(Errors).is_debug()
+                # Throw inside catch block to show both error and full C++ trace
+                throw(LibsemigroupsError(extract_message(exception_message(ex))))
+            end
+            caught_ex = ex
+        end
+        # Throw outside catch block to avoid exception chaining ("caused by")
+        if caught_ex !== nothing
+            throw(LibsemigroupsError(extract_message(exception_message(caught_ex))))
+        end
         result
     end
 end
+
+end # module Errors
