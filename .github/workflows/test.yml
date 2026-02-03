@@ -54,6 +54,7 @@ jobs:
         uses: Chocobo1/setup-ccache-action@v1
         with:
           update_packager_index: false
+          override_cache_key: ccache_${{ matrix.system.os }}_${{ runner.arch }}
       - name: "macOS only: Install libsemigroups dependencies . . ."
         if: ${{ startsWith(matrix.system.os, 'macOS') }}
         run: brew install autoconf automake libtool
