@@ -1,8 +1,16 @@
-# transf.jl - High-level Julia API for transformations
+# Copyright (c) 2026, James W. Swent
 #
-# This file provides user-facing transformation types (Transf, PPerm, Perm)
-# with idiomatic Julia interfaces: 1-based indexing, automatic type selection,
-# and standard Julia operators.
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+transf.jl - High-level Julia API for transformations
+
+This file provides user-facing transformation types (Transf, PPerm, Perm)
+with idiomatic Julia interfaces: 1-based indexing, automatic type selection,
+and standard Julia operators.
+"""
 
 using CxxWrap.StdLib: StdVector
 

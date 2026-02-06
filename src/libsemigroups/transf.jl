@@ -1,9 +1,17 @@
-# transf.jl - Julia wrappers for libsemigroups transformation classes
+# Copyright (c) 2026, James W. Swent
 #
-# This file provides low-level Julia wrappers for the C++ transformation
-# classes (Transf, PPerm, Perm) exposed via CxxWrap. These are thin wrappers
-# that provide memory safety via GC.@preserve and convenient access to the
-# C++ bindings.
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+transf.jl - Julia wrappers for libsemigroups transformation classes
+
+This file provides low-level Julia wrappers for the C++ transformation
+classes (Transf, PPerm, Perm) exposed via CxxWrap. These are thin wrappers
+that provide memory safety via GC.@preserve and convenient access to the
+C++ bindings.
+"""
 
 # ============================================================================
 # Type aliases - Concrete template instantiations from C++

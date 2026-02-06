@@ -1,6 +1,14 @@
-# build.jl - Build script for semigroups_julia C++ library
+# Copyright (c) 2026, James W. Swent
 #
-# This script builds the C++ wrapper library during package installation.
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+build.jl - Build script for semigroups_julia C++ library
+
+This script builds the C++ wrapper library during package installation.
+"""
 
 using CxxWrap
 

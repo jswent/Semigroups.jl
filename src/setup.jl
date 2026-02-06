@@ -1,7 +1,15 @@
-# setup.jl - Library location and build logic for Semigroups.jl
+# Copyright (c) 2026, James W. Swent
 #
-# This module handles locating the compiled C++ wrapper library,
-# either from a pre-built location or by building it from source.
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+setup.jl - Library location and build logic for Semigroups.jl
+
+This module handles locating the compiled C++ wrapper library,
+either from a pre-built location or by building it from source.
+"""
 
 module Setup
 

@@ -1,7 +1,15 @@
-# constants.jl - Julia wrappers for libsemigroups constants
+# Copyright (c) 2026, James W. Swent
 #
-# This file provides Julia-friendly access to the libsemigroups constants
-# UNDEFINED, POSITIVE_INFINITY, NEGATIVE_INFINITY, and LIMIT_MAX.
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+constants.jl - Julia wrappers for libsemigroups constants
+
+This file provides Julia-friendly access to the libsemigroups constants
+UNDEFINED, POSITIVE_INFINITY, NEGATIVE_INFINITY, and LIMIT_MAX.
+"""
 
 # Singleton types for special constants
 # These allow us to dispatch on the constant type while providing

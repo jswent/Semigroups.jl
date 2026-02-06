@@ -1,3 +1,13 @@
+# Copyright (c) 2026, James W. Swent
+#
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+make.jl - Documentation build script for Semigroups.jl
+"""
+
 using Documenter
 using Semigroups
 

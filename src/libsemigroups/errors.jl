@@ -1,8 +1,8 @@
-# errors.jl - Error handling utilities for libsemigroups
+# Copyright (c) 2026, James W. Swent
 #
-# This module provides utilities for catching C++ exceptions from libsemigroups
-# and rethrowing them as a Julia-native LibsemigroupsError with the C++ file/line
-# prefix stripped.
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
 
 """
     Errors

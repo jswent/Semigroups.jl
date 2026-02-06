@@ -1,5 +1,14 @@
-# test_transf.jl - Tests for transformation types (Transf, PPerm, Perm)
-# Ported from libsemigroups_pybind11/tests/test_transf.py
+# Copyright (c) 2026, James W. Swent
+#
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+test_transf.jl - Tests for transformation types (Transf, PPerm, Perm)
+
+Ported from libsemigroups_pybind11/tests/test_transf.py
+"""
 
 # ============================================================================
 # Helper functions for testing

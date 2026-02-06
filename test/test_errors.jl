@@ -1,3 +1,13 @@
+# Copyright (c) 2026, James W. Swent
+#
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+test_errors.jl - Tests for error handling utilities
+"""
+
 @testset "Error Handling" begin
     @testset "LibsemigroupsError type" begin
         err = Semigroups.LibsemigroupsError("test message")

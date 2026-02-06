@@ -1,7 +1,17 @@
-# LibSemigroups.jl - CxxWrap module definition for libsemigroups bindings
+# Copyright (c) 2026, James W. Swent
 #
-# This module loads the compiled C++ wrapper library and exposes the
-# wrapped types and functions to Julia.
+# Distributed under the terms of the GPL license version 3.
+#
+# The full license is in the file LICENSE, distributed with this software.
+
+"""
+    LibSemigroups
+
+CxxWrap module definition for libsemigroups bindings
+
+This module loads the compiled C++ wrapper library and exposes the
+wrapped types and functions to Julia.
+"""
 
 module LibSemigroups
 
