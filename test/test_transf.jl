@@ -347,20 +347,86 @@ end
         @test p1 * p2 == p1
     end
 
-    @testset "Type selection based on degree" begin
-        # Small degree should use Transf1 internally
-        t_small = Transf(1:10)
-        @test degree(t_small) == 10
+    # ========================================================================
+    # Parametric type tests
+    # ========================================================================
 
-        # Medium degree should use Transf2 internally
-        t_medium = Transf(1:300)
-        @test degree(t_medium) == 300
+    function check_parametric_type(T)
+        # Auto-selection: small degree → UInt8
+        x8 = T(collect(1:10))
+        @test x8 isa T{UInt8}
+        @test degree(x8) == 10
 
-        # Test that operations work across different internal types
-        t1 = Transf(1:10)
-        t2 = Transf(1:300)
-        # Promoting to common type and multiplying should work
-        # (may need to extend degrees first)
+        # Auto-selection: large degree → UInt16
+        x16 = T(collect(1:300))
+        @test x16 isa T{UInt16}
+        @test degree(x16) == 300
+
+        # Boundary: 255 → UInt8, 256 → UInt16
+        @test T(collect(1:255)) isa T{UInt8}
+        @test T(collect(1:256)) isa T{UInt16}
+
+        # Explicit scalar type constructor
+        x_explicit = T([1, 2, 3], UInt16)
+        @test x_explicit isa T{UInt16}
+        @test collect(x_explicit) == collect(T([1, 2, 3]))
+
+        @test T([1, 2], UInt32) isa T{UInt32}
+
+        # copy preserves type parameter
+        @test copy(x8) isa T{UInt8}
+        @test copy(x16) isa T{UInt16}
+        @test copy(x8) == x8
+
+        # one preserves type context
+        @test one(x8) isa T{UInt8}
+        @test one(x16) isa T{UInt16}
+
+        # Same-type multiplication preserves type
+        @test x8 * x8 isa T{UInt8}
+        @test x16 * x16 isa T{UInt16}
+
+        # Cross-type multiplication is not supported (must have same scalar type)
+        @test_throws MethodError x8 * x16
+        @test_throws MethodError x16 * x8
+    end
+
+    @testset "Parametric type - Transf" begin
+        check_parametric_type(Transf)
+    end
+
+    @testset "Parametric type - PPerm" begin
+        check_parametric_type(PPerm)
+
+        # Domain/image/degree constructors: auto-selection
+        @test PPerm([1, 3], [2, 4], 5) isa PPerm{UInt8}
+        @test PPerm([1, 3], [2, 4], 300) isa PPerm{UInt16}
+        @test PPerm(Int[], Int[], 255) isa PPerm{UInt8}
+        @test PPerm(Int[], Int[], 256) isa PPerm{UInt16}
+
+        # Domain/image/degree constructor: explicit type
+        p_explicit = PPerm([1, 3], [2, 4], 5, UInt32)
+        @test p_explicit isa PPerm{UInt32}
+        @test collect(p_explicit) == collect(PPerm([1, 3], [2, 4], 5))
+
+        # Images constructor with UNDEFINED and explicit type
+        p_undef = PPerm([2, UNDEFINED, 1], UInt16)
+        @test p_undef isa PPerm{UInt16}
+        @test collect(p_undef) == collect(PPerm([2, UNDEFINED, 1]))
+
+        # inv, left_one, right_one preserve type
+        p = PPerm([2, UNDEFINED, 1])
+        @test inv(p) isa PPerm{UInt8}
+        @test left_one(p) isa PPerm{UInt8}
+        @test right_one(p) isa PPerm{UInt8}
+    end
+
+    @testset "Parametric type - Perm" begin
+        check_parametric_type(Perm)
+
+        # inv preserves type
+        @test inv(Perm([2, 3, 1])) isa Perm{UInt8}
+        @test inv(Perm(circshift(collect(1:300), 1))) isa Perm{UInt16}
     end
 
     @testset "One and identity" begin

@@ -59,6 +59,16 @@ function _transf_type_from_scalar_type(scalar::DataType)
     return lookup[scalar]
 end
 
+function _pperm_type_from_scalar_type(scalar::DataType)
+    lookup = Dict(UInt8 => PPerm1, UInt16 => PPerm2, UInt32 => PPerm4)
+    return lookup[scalar]
+end
+
+function _perm_type_from_scalar_type(scalar::DataType)
+    lookup = Dict(UInt8 => Perm1, UInt16 => Perm2, UInt32 => Perm4)
+    return lookup[scalar]
+end
+
 """
     _pperm_type_from_degree(n::Integer) -> Type
 
@@ -236,44 +246,11 @@ Base.copy(t::Transf{T}) where {T} = Transf{T}(copy(t.cxx_obj))
     *(t1::Transf, t2::Transf) -> Transf
 
 Compose two transformations. Returns t1 ∘ t2, i.e., (t1*t2)[i] = t1[t2[i]].
+Both operands must have the same scalar type (use the same underlying C++ type).
 """
-function Base.:(*)(t1::Transf, t2::Transf)
-    # Promote to larger type if needed
-    max_deg = max(degree(t1), degree(t2))
-    CxxType = _transf_type_from_degree(max_deg)
-
-    # Create identity of appropriate type
-    result_cxx = LibSemigroups.one(CxxType, UInt(max_deg))
-
-    # Promote operands if needed
-    t1_cxx = t1.cxx_obj
-    t2_cxx = t2.cxx_obj
-
-    if typeof(t1_cxx) !== CxxType
-        imgs1 = [UInt(img) for img in images_vector(t1_cxx)]
-        while length(imgs1) < max_deg
-            push!(imgs1, UInt(length(imgs1)))
-        end
-        ScalarType = CxxType === Transf1 ? UInt8 : (CxxType === Transf2 ? UInt16 : UInt32)
-        # Convert Julia Vector to CxxWrap StdVector
-        std_vec1 = StdVector{ScalarType}(convert(Vector{ScalarType}, imgs1))
-        t1_cxx = @wrap_libsemigroups_call CxxType(std_vec1)
-    end
-
-    if typeof(t2_cxx) !== CxxType
-        imgs2 = [UInt(img) for img in images_vector(t2_cxx)]
-        while length(imgs2) < max_deg
-            push!(imgs2, UInt(length(imgs2)))
-        end
-        ScalarType = CxxType === Transf1 ? UInt8 : (CxxType === Transf2 ? UInt16 : UInt32)
-        # Convert Julia Vector to CxxWrap StdVector
-        std_vec2 = StdVector{ScalarType}(convert(Vector{ScalarType}, imgs2))
-        t2_cxx = @wrap_libsemigroups_call CxxType(std_vec2)
-    end
-
-    # Compute product
-    product_inplace!(result_cxx, t1_cxx, t2_cxx)
-
+function Base.:(*)(t1::Transf{T}, t2::Transf{T}) where {T}
+    result_cxx = one(t1.cxx_obj)
+    product_inplace!(result_cxx, t1.cxx_obj, t2.cxx_obj)
     return Transf(result_cxx)
 end
 
@@ -346,95 +323,115 @@ p = PPerm([2, UNDEFINED, 1])  # maps 1->2, 2->undefined, 3->1
 p = PPerm([1, 3], [2, 1], 3)  # maps 1->2, 3->1, degree 3
 ```
 """
-mutable struct PPerm
+mutable struct PPerm{T}
     cxx_obj::Union{PPerm1,PPerm2,PPerm4}
+end
 
-    """
-        PPerm(images::AbstractVector)
+PPerm(p::PPerm1) = PPerm{UInt8}(p)
+PPerm(p::PPerm2) = PPerm{UInt16}(p)
+PPerm(p::PPerm4) = PPerm{UInt32}(p)
 
-    Create a partial permutation from a vector of images using 1-based indexing.
-    Use UNDEFINED for undefined points.
+"""
+    PPerm(images::AbstractVector, ::Type{T}) where {T}
 
-    # Example
-    ```julia
-    using Semigroups: UNDEFINED
-    p = PPerm([2, UNDEFINED, 1, 4])  # 2 is not in the domain
-    ```
-    """
-    function PPerm(images::AbstractVector)
-        n = length(images)
-        if n == 0
-            error("Cannot create partial permutation of degree 0")
-        end
+Create a partial permutation from a vector of images using 1-based indexing
+with explicit scalar type `T`.
+Use UNDEFINED for undefined points.
 
-        # Convert to 0-based indexing for C++
-        ScalarType =
-            _scalar_type_from_degree(n) == UInt8 ? UInt8 :
-            (_scalar_type_from_degree(n) == UInt16 ? UInt16 : UInt32)
-
-        images_0based = Vector{ScalarType}(undef, n)
-        for (i, img) in enumerate(images)
-            if img === UNDEFINED
-                images_0based[i] = convert(ScalarType, UNDEFINED)
-            else
-                images_0based[i] = ScalarType(img - 1)
-            end
-        end
-
-        # Select appropriate C++ type based on degree
-        CxxType = _pperm_type_from_degree(n)
-
-        # Construct C++ object - CxxWrap needs StdVector
-        cxx_obj = @wrap_libsemigroups_call CxxType(StdVector(images_0based))
-
-        return new(cxx_obj)
+# Example
+```julia
+using Semigroups: UNDEFINED
+p = PPerm([2, UNDEFINED, 1, 4], UInt8)
+```
+"""
+function PPerm(images::AbstractVector, ::Type{T}) where {T}
+    n = length(images)
+    if n == 0
+        error("Cannot create partial permutation of degree 0")
     end
 
-    """
-        PPerm(domain::AbstractVector{<:Integer}, image::AbstractVector{<:Integer}, degree::Integer)
+    CxxType = _pperm_type_from_scalar_type(T)
 
-    Create a partial permutation from domain and image vectors with specified degree.
-    Uses 1-based indexing.
+    images_0based = Vector{T}(undef, n)
+    for (i, img) in enumerate(images)
+        if img === UNDEFINED
+            images_0based[i] = convert(T, UNDEFINED)
+        else
+            images_0based[i] = T(img - 1)
+        end
+    end
 
-    # Example
-    ```julia
-    p = PPerm([1, 3], [2, 4], 5)  # maps 1->2, 3->4, degree 5
-    ```
-    """
-    function PPerm(
-        domain::AbstractVector{<:Integer},
-        image::AbstractVector{<:Integer},
-        deg::Integer,
+    cxx_obj = @wrap_libsemigroups_call CxxType(StdVector{T}(images_0based))
+    return PPerm{T}(cxx_obj)
+end
+
+"""
+    PPerm(images::AbstractVector)
+
+Create a partial permutation from a vector of images using 1-based indexing.
+Use UNDEFINED for undefined points. Automatically selects the scalar type.
+
+# Example
+```julia
+using Semigroups: UNDEFINED
+p = PPerm([2, UNDEFINED, 1, 4])  # 2 is not in the domain
+```
+"""
+function PPerm(images::AbstractVector)
+    return PPerm(images, _scalar_type_from_degree(length(images)))
+end
+
+"""
+    PPerm(domain::AbstractVector{<:Integer}, image::AbstractVector{<:Integer}, deg::Integer, ::Type{T}) where {T}
+
+Create a partial permutation from domain and image vectors with specified degree
+and explicit scalar type `T`. Uses 1-based indexing.
+
+# Example
+```julia
+p = PPerm([1, 3], [2, 4], 5, UInt8)  # maps 1->2, 3->4, degree 5
+```
+"""
+function PPerm(
+    domain::AbstractVector{<:Integer},
+    image::AbstractVector{<:Integer},
+    deg::Integer,
+    ::Type{T},
+) where {T}
+    if length(domain) != length(image)
+        error("Domain and image must have the same length")
+    end
+
+    CxxType = _pperm_type_from_scalar_type(T)
+
+    dom_0based = convert(Vector{T}, [T(d - 1) for d in domain])
+    img_0based = convert(Vector{T}, [T(i - 1) for i in image])
+
+    cxx_obj = @wrap_libsemigroups_call CxxType(
+        StdVector{T}(dom_0based),
+        StdVector{T}(img_0based),
+        UInt(deg),
     )
-        if length(domain) != length(image)
-            error("Domain and image must have the same length")
-        end
+    return PPerm{T}(cxx_obj)
+end
 
-        # Convert to 0-based
-        ScalarType =
-            _scalar_type_from_degree(deg) == UInt8 ? UInt8 :
-            (_scalar_type_from_degree(deg) == UInt16 ? UInt16 : UInt32)
+"""
+    PPerm(domain::AbstractVector{<:Integer}, image::AbstractVector{<:Integer}, deg::Integer)
 
-        dom_0based = convert(Vector{ScalarType}, [ScalarType(d - 1) for d in domain])
-        img_0based = convert(Vector{ScalarType}, [ScalarType(i - 1) for i in image])
+Create a partial permutation from domain and image vectors with specified degree.
+Automatically selects the scalar type. Uses 1-based indexing.
 
-        # Select appropriate C++ type
-        CxxType = _pperm_type_from_degree(deg)
-
-        # Construct C++ object - CxxWrap needs StdVector
-        cxx_obj = @wrap_libsemigroups_call CxxType(
-            StdVector(dom_0based),
-            StdVector(img_0based),
-            UInt(deg),
-        )
-
-        return new(cxx_obj)
-    end
-
-    # Internal constructor from C++ object
-    function PPerm(cxx_obj::Union{PPerm1,PPerm2,PPerm4})
-        return new(cxx_obj)
-    end
+# Example
+```julia
+p = PPerm([1, 3], [2, 4], 5)  # maps 1->2, 3->4, degree 5
+```
+"""
+function PPerm(
+    domain::AbstractVector{<:Integer},
+    image::AbstractVector{<:Integer},
+    deg::Integer,
+)
+    return PPerm(domain, image, deg, _scalar_type_from_degree(deg))
 end
 
 # Degree and rank
@@ -486,43 +483,18 @@ Base.:(>=)(p1::PPerm, p2::PPerm) = LibSemigroups.is_greater_equal(p1.cxx_obj, p2
 Base.hash(p::PPerm, h::UInt) = hash(hash_value(p.cxx_obj), h)
 
 # Copy
-Base.copy(p::PPerm) = PPerm(copy(p.cxx_obj))
+Base.copy(p::PPerm{T}) where {T} = PPerm{T}(copy(p.cxx_obj))
 
 # Multiplication
-function Base.:(*)(p1::PPerm, p2::PPerm)
-    max_deg = max(degree(p1), degree(p2))
-    CxxType = _pperm_type_from_degree(max_deg)
+"""
+    *(p1::PPerm, p2::PPerm) -> PPerm
 
-    result_cxx = LibSemigroups.one(CxxType, UInt(max_deg))
-
-    # Type promotion logic similar to Transf
-    p1_cxx = p1.cxx_obj
-    p2_cxx = p2.cxx_obj
-
-    if typeof(p1_cxx) !== CxxType
-        imgs1 = images_vector(p1_cxx)
-        ScalarType = CxxType === PPerm1 ? UInt8 : (CxxType === PPerm2 ? UInt16 : UInt32)
-        while length(imgs1) < max_deg
-            push!(imgs1, convert(ScalarType, UNDEFINED))
-        end
-        # Convert Julia Vector to CxxWrap StdVector
-        std_vec1 = StdVector{ScalarType}(convert(Vector{ScalarType}, imgs1))
-        p1_cxx = @wrap_libsemigroups_call CxxType(std_vec1)
-    end
-
-    if typeof(p2_cxx) !== CxxType
-        imgs2 = images_vector(p2_cxx)
-        ScalarType = CxxType === PPerm1 ? UInt8 : (CxxType === PPerm2 ? UInt16 : UInt32)
-        while length(imgs2) < max_deg
-            push!(imgs2, convert(ScalarType, UNDEFINED))
-        end
-        # Convert Julia Vector to CxxWrap StdVector
-        std_vec2 = StdVector{ScalarType}(convert(Vector{ScalarType}, imgs2))
-        p2_cxx = @wrap_libsemigroups_call CxxType(std_vec2)
-    end
-
-    product_inplace!(result_cxx, p1_cxx, p2_cxx)
-
+Compose two partial permutations.
+Both operands must have the same scalar type (use the same underlying C++ type).
+"""
+function Base.:(*)(p1::PPerm{T}, p2::PPerm{T}) where {T}
+    result_cxx = one(p1.cxx_obj)
+    product_inplace!(result_cxx, p1.cxx_obj, p2.cxx_obj)
     return PPerm(result_cxx)
 end
 
@@ -614,54 +586,60 @@ p = Perm([2, 3, 1])
 
 The constructor validates that the input is a valid permutation.
 """
-mutable struct Perm
+mutable struct Perm{T}
     cxx_obj::Union{Perm1,Perm2,Perm4}
+end
 
-    """
-        Perm(images::AbstractVector{<:Integer})
+Perm(p::Perm1) = Perm{UInt8}(p)
+Perm(p::Perm2) = Perm{UInt16}(p)
+Perm(p::Perm4) = Perm{UInt32}(p)
 
-    Create a permutation from a vector of images using 1-based indexing.
-    Validates that the input is a bijection.
+"""
+    Perm(images::AbstractVector{<:Integer}, ::Type{T}) where {T}
 
-    # Example
-    ```julia
-    p = Perm([2, 3, 1])  # Valid: bijection from {1,2,3} to {1,2,3}
-    p = Perm([1, 1, 2])  # Error: not a bijection
-    ```
-    """
-    function Perm(images::AbstractVector{<:Integer})
-        n = length(images)
-        if n == 0
-            error("Cannot create permutation of degree 0")
-        end
+Create a permutation from a vector of images using 1-based indexing
+with explicit scalar type `T`. Validates that the input is a bijection.
 
-        # Validate that it's a permutation (bijection)
-        if !isperm(images)
-            error(
-                "Input is not a valid permutation (must be a bijection from {1,...,n} to {1,...,n})",
-            )
-        end
-
-        # Convert to 0-based indexing for C++
-        images_0based = [UInt(img - 1) for img in images]
-
-        # Select appropriate C++ type based on degree
-        CxxType = _perm_type_from_degree(n)
-        ScalarType = CxxType === Perm1 ? UInt8 : (CxxType === Perm2 ? UInt16 : UInt32)
-
-        # Convert to correct scalar type
-        images_typed = convert(Vector{ScalarType}, images_0based)
-
-        # Construct C++ object - CxxWrap needs StdVector
-        cxx_obj = @wrap_libsemigroups_call CxxType(StdVector(images_typed))
-
-        return new(cxx_obj)
+# Example
+```julia
+p = Perm([2, 3, 1], UInt8)
+```
+"""
+function Perm(images::AbstractVector{<:Integer}, ::Type{T}) where {T}
+    n = length(images)
+    if n == 0
+        error("Cannot create permutation of degree 0")
     end
 
-    # Internal constructor from C++ object
-    function Perm(cxx_obj::Union{Perm1,Perm2,Perm4})
-        return new(cxx_obj)
+    if !isperm(images)
+        error(
+            "Input is not a valid permutation (must be a bijection from {1,...,n} to {1,...,n})",
+        )
     end
+
+    CxxType = _perm_type_from_scalar_type(T)
+
+    images_0based = [UInt(img - 1) for img in images]
+    images_typed = convert(Vector{T}, images_0based)
+
+    cxx_obj = @wrap_libsemigroups_call CxxType(StdVector{T}(images_typed))
+    return Perm{T}(cxx_obj)
+end
+
+"""
+    Perm(images::AbstractVector{<:Integer})
+
+Create a permutation from a vector of images using 1-based indexing.
+Validates that the input is a bijection. Automatically selects the scalar type.
+
+# Example
+```julia
+p = Perm([2, 3, 1])  # Valid: bijection from {1,2,3} to {1,2,3}
+p = Perm([1, 1, 2])  # Error: not a bijection
+```
+"""
+function Perm(images::AbstractVector{<:Integer})
+    return Perm(images, _scalar_type_from_degree(length(images)))
 end
 
 # Helper to check if vector is a permutation
@@ -713,43 +691,18 @@ Base.:(>=)(p1::Perm, p2::Perm) = LibSemigroups.is_greater_equal(p1.cxx_obj, p2.c
 Base.hash(p::Perm, h::UInt) = hash(hash_value(p.cxx_obj), h)
 
 # Copy
-Base.copy(p::Perm) = Perm(copy(p.cxx_obj))
+Base.copy(p::Perm{T}) where {T} = Perm{T}(copy(p.cxx_obj))
 
 # Multiplication
-function Base.:(*)(p1::Perm, p2::Perm)
-    max_deg = max(degree(p1), degree(p2))
-    CxxType = _perm_type_from_degree(max_deg)
+"""
+    *(p1::Perm, p2::Perm) -> Perm
 
-    result_cxx = LibSemigroups.one(CxxType, UInt(max_deg))
-
-    # Type promotion
-    p1_cxx = p1.cxx_obj
-    p2_cxx = p2.cxx_obj
-
-    if typeof(p1_cxx) !== CxxType
-        imgs1 = [UInt(img) for img in images_vector(p1_cxx)]
-        while length(imgs1) < max_deg
-            push!(imgs1, UInt(length(imgs1)))
-        end
-        ScalarType = CxxType === Perm1 ? UInt8 : (CxxType === Perm2 ? UInt16 : UInt32)
-        # Convert Julia Vector to CxxWrap StdVector
-        std_vec1 = StdVector{ScalarType}(convert(Vector{ScalarType}, imgs1))
-        p1_cxx = @wrap_libsemigroups_call CxxType(std_vec1)
-    end
-
-    if typeof(p2_cxx) !== CxxType
-        imgs2 = [UInt(img) for img in images_vector(p2_cxx)]
-        while length(imgs2) < max_deg
-            push!(imgs2, UInt(length(imgs2)))
-        end
-        ScalarType = CxxType === Perm1 ? UInt8 : (CxxType === Perm2 ? UInt16 : UInt32)
-        # Convert Julia Vector to CxxWrap StdVector
-        std_vec2 = StdVector{ScalarType}(convert(Vector{ScalarType}, imgs2))
-        p2_cxx = @wrap_libsemigroups_call CxxType(std_vec2)
-    end
-
-    product_inplace!(result_cxx, p1_cxx, p2_cxx)
-
+Compose two permutations.
+Both operands must have the same scalar type (use the same underlying C++ type).
+"""
+function Base.:(*)(p1::Perm{T}, p2::Perm{T}) where {T}
+    result_cxx = one(p1.cxx_obj)
+    product_inplace!(result_cxx, p1.cxx_obj, p2.cxx_obj)
     return Perm(result_cxx)
 end
 
