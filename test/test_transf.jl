@@ -375,4 +375,71 @@ end
         id2 = one(Transf, 3)
         @test id == id2
     end
+
+    function check_increase_degree_by!(T)
+        x = T([1])
+        @test degree(x) == 1
+        increase_degree_by!(x, 2)
+        @test degree(x) == 3
+        increase_degree_by!(x, 15)
+        @test degree(x) == 18
+        increase_degree_by!(x, 15)
+        @test degree(x) == 33
+        increase_degree_by!(x, 255)
+        @test degree(x) == 288
+        increase_degree_by!(x, 2^16)
+        @test degree(x) == 288 + 2^16
+    end
+
+    @testset "increase_degree_by! method" begin
+        check_increase_degree_by!(Transf)
+        check_increase_degree_by!(PPerm)
+        check_increase_degree_by!(Perm)
+    end
+
+
+    @testset "swap! method" begin
+        # Test swap for Transf
+        x = Transf([1])
+        y = Transf([1, 2])
+        swap!(x, y)
+        @test x == Transf([1, 2])
+        @test y == Transf([1])
+
+        # Test swap for PPerm
+        p1 = PPerm([1], [2], 3)
+        p2 = PPerm([1, 2], [3, 4], 5)
+        swap!(p1, p2)
+        @test p1 == PPerm([1, 2], [3, 4], 5)
+        @test p2 == PPerm([1], [2], 3)
+
+        # Test swap for Perm
+        perm1 = Perm([1])
+        perm2 = Perm([2, 1])
+        swap!(perm1, perm2)
+        @test perm1 == Perm([2, 1])
+        @test perm2 == Perm([1])
+    end
+
+    @testset "Return policy tests" begin
+        # Test that copy returns a new object
+        for TestType in (Transf, PPerm, Perm)
+            x = TestType([1])
+            y = copy(x)
+            @test x !== y  # Different objects
+            @test x == y   # But equal values
+        end
+
+        # Test that images returns a new vector each time
+        x = Transf([1, 2, 3])
+        imgs1 = images(x)
+        imgs2 = images(x)
+        @test imgs1 !== imgs2  # Different vectors
+
+        # Test that increase_degree_by! modifies in place and returns the same object
+        x = Transf([1])
+        result = increase_degree_by!(x, 5)
+        @test result === x  # Same object
+        @test degree(x) == 6
+    end
 end

@@ -1,4 +1,4 @@
-# Copyright (c) 2026, James W. Swent
+# Copyright (c) 2026, James W. Swent, J. D. Mitchell
 #
 # Distributed under the terms of the GPL license version 3.
 #
@@ -151,7 +151,7 @@ product_inplace!(result, x, y)
 """
 function product_inplace!(result::T, x::T, y::T) where {T<:_PTransfTypes}
     GC.@preserve result x y begin
-        LibSemigroups.product_inplace!(result, x, y)
+        @wrap_libsemigroups_call LibSemigroups.product_inplace!(result, x, y)
     end
     return nothing
 end
@@ -170,7 +170,7 @@ increase_degree_by!(t, 2)  # Now has degree 4
 """
 function increase_degree_by!(t::T, n::Integer) where {T<:_PTransfTypes}
     GC.@preserve t begin
-        LibSemigroups.increase_degree_by!(t, UInt(n))
+        @wrap_libsemigroups_call LibSemigroups.increase_degree_by!(t, UInt(n))
     end
     return t
 end
@@ -182,7 +182,7 @@ Swap the contents of `t` with `x`. Both objects are modified.
 """
 function swap!(t::T, x::T) where {T<:_PTransfTypes}
     GC.@preserve t x begin
-        LibSemigroups.swap(t, x)
+        @wrap_libsemigroups_call LibSemigroups.swap(t, x)
     end
     return nothing
 end

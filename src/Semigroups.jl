@@ -54,13 +54,13 @@ include("LibSemigroups.jl")
 # Re-export the low-level module for advanced users
 using .LibSemigroups
 
+# Import error handling utilities
+include("libsemigroups/errors.jl")
+using .Errors: LibsemigroupsError, @wrap_libsemigroups_call
+
 # Julia-side wrapper files
 include("libsemigroups/constants.jl")
-include("libsemigroups/errors.jl")
 include("libsemigroups/transf.jl")
-
-# Import error handling utilities
-using .Errors: LibsemigroupsError, @wrap_libsemigroups_call
 
 # High-level element types
 include("elements/transf.jl")
@@ -83,6 +83,7 @@ export is_undefined, is_positive_infinity, is_negative_infinity, is_limit_max
 # Transformation types and functions
 export Transf, PPerm, Perm
 export degree, rank, images, image_set, domain_set
+export increase_degree_by!, swap!
 export left_one, right_one
 
 end # module Semigroups

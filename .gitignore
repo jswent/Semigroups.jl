@@ -14,3 +14,4 @@ compile_commands.json
 /local/*
 /Manifest.toml
 /src/libraryfuncdictionary.jl
+.DS_Store
