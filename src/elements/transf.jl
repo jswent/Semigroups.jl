@@ -1190,7 +1190,7 @@ function inverse(p::T) where {T<:Union{PPerm,Perm}}
 end
 
 """
-    Base.one(p::T) where T<:Union{PPerm,Perm} -> T
+    Base.one(p::T) where T<:Union{Transf,PPerm,Perm} -> T
 
 Returns the identity on the same number of points as the degree of _p_.
 
@@ -1210,7 +1210,7 @@ julia> p * one(p) == p
 true
 ```
 """
-function Base.one(p::T) where {T<:Union{PPerm,Perm}}
+function Base.one(p::T) where {T<:Union{Transf,PPerm,Perm}}
     return T(one(p.cxx_obj))
 end
 

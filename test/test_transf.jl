@@ -15,7 +15,7 @@ Ported from libsemigroups_pybind11/tests/test_transf.py
 # ============================================================================
 
 function check_one_ops(T, x)
-    # one(x), operator==, and operator!=
+    # Test both one(T, n) and one(x)
     id = one(T, degree(x))
     @test one(x) == id
     @test one(x) != x
@@ -72,7 +72,7 @@ function check_transf_basic(T)
     check_product_inplace(x)
 
     # Test images
-    @test images(x) == [2, 2, 3, 4, 5:17...]
+    @test collect(x) == [2, 2, 3, 4, 5:17...]
 
     # More complex transformation
     # Python: x = T([15, 5, 2, 10, 17, 8, 13, 15, 1, 9, 4, 0, 15, 5, 14, 11, 15, 4, 7, 3])
@@ -104,8 +104,8 @@ function check_pperm_basic(T)
     # Test specific PPerm operations
     @test x * right_one(x) == x
     @test left_one(x) * x == x
-    @test x * inv(x) == left_one(x)
-    @test inv(x) * x == right_one(x)
+    @test x * inverse(x) == left_one(x)
+    @test inverse(x) * x == right_one(x)
 
     # Test rank
     @test rank(x) == 3
@@ -141,8 +141,8 @@ function check_perm_basic(T)
     check_one_ops(T, x)
 
     # Test inverse
-    @test inv(x) * x == one(x)
-    @test x * inv(x) == one(x)
+    @test inverse(x) * x == one(x)
+    @test x * inverse(x) == one(x)
 
     # Test rank (always equals degree for permutations)
     @test rank(x) == 17
@@ -156,7 +156,7 @@ function check_perm_basic(T)
     check_product_inplace(x)
 
     # Test images
-    @test images(x) == [2, 3, 4, 1, 7, 6, 5, 8:17...]
+    @test collect(x) == [2, 3, 4, 1, 7, 6, 5, 8:17...]
 end
 
 # ============================================================================
@@ -214,9 +214,9 @@ end
         @test p2[4] === UNDEFINED
         @test p2[5] === UNDEFINED
 
-        # Test domain_set and image_set
-        @test domain_set(p2) == [1, 3]
-        @test image_set(p2) == [2, 4]
+        # Test domain and image
+        @test domain(p2) == [1, 3]
+        @test image(p2) == [2, 4]
     end
 
     @testset "Perm - Construction and validation" begin
@@ -263,7 +263,7 @@ end
 
     @testset "Images and iteration" begin
         x = Transf(1:18)
-        @test images(x) == collect(1:18)
+        @test collect(x) == collect(1:18)
 
         # Test iteration
         count = 0
@@ -305,28 +305,28 @@ end
     @testset "image and domain helper functions" begin
         # Transf
         x = Transf([1, 1, 2])
-        @test sort(image_set(x)) == [1, 2]
+        @test image(x) == [1, 2]
 
         # PPerm
         x = PPerm([1, 2], [3, 2], 4)
-        @test domain_set(x) == [1, 2]
-        @test image_set(x) == [2, 3]
+        @test domain(x) == [1, 2]
+        @test image(x) == [2, 3]
 
         # Perm
         x = Perm([1, 2])
-        @test sort(image_set(x)) == [1, 2]
+        @test image(x) == [1, 2]
     end
 
     @testset "Inverse operations" begin
         # PPerm inverse
         p = PPerm([1, 3], [2, 4], 5)
-        p_inv = inv(p)
+        p_inv = inverse(p)
         @test p * p_inv == left_one(p)
         @test p_inv * p == right_one(p)
 
         # Perm inverse
         perm = Perm([2, 3, 1])
-        perm_inv = inv(perm)
+        perm_inv = inverse(perm)
         @test perm * perm_inv == one(perm)
         @test perm_inv * perm == one(perm)
     end
@@ -378,7 +378,9 @@ end
         @test copy(x16) isa T{UInt16}
         @test copy(x8) == x8
 
-        # one preserves type context
+        # one preserves type context (both static and instance)
+        @test one(T, degree(x8)) isa T{UInt8}
+        @test one(T, degree(x16)) isa T{UInt16}
         @test one(x8) isa T{UInt8}
         @test one(x16) isa T{UInt16}
 
@@ -414,9 +416,9 @@ end
         @test p_undef isa PPerm{UInt16}
         @test collect(p_undef) == collect(PPerm([2, UNDEFINED, 1]))
 
-        # inv, left_one, right_one preserve type
+        # inverse, left_one, right_one preserve type
         p = PPerm([2, UNDEFINED, 1])
-        @test inv(p) isa PPerm{UInt8}
+        @test inverse(p) isa PPerm{UInt8}
         @test left_one(p) isa PPerm{UInt8}
         @test right_one(p) isa PPerm{UInt8}
     end
@@ -424,20 +426,20 @@ end
     @testset "Parametric type - Perm" begin
         check_parametric_type(Perm)
 
-        # inv preserves type
-        @test inv(Perm([2, 3, 1])) isa Perm{UInt8}
-        @test inv(Perm(circshift(collect(1:300), 1))) isa Perm{UInt16}
+        # inverse preserves type
+        @test inverse(Perm([2, 3, 1])) isa Perm{UInt8}
+        @test inverse(Perm(circshift(collect(1:300), 1))) isa Perm{UInt16}
     end
 
     @testset "One and identity" begin
-        # Test one() function and identity properties
+        # Test both one(t) instance and one(Transf, n) static
         t = Transf([2, 1, 3])
         id = one(t)
         @test t * id == t
         @test id * t == t
         @test id == Transf([1, 2, 3])
 
-        # Test static one
+        # Test static one matches instance one
         id2 = one(Transf, 3)
         @test id == id2
     end
@@ -496,10 +498,10 @@ end
             @test x == y   # But equal values
         end
 
-        # Test that images returns a new vector each time
+        # Test that collect returns a new vector each time
         x = Transf([1, 2, 3])
-        imgs1 = images(x)
-        imgs2 = images(x)
+        imgs1 = collect(x)
+        imgs2 = collect(x)
         @test imgs1 !== imgs2  # Different vectors
 
         # Test that increase_degree_by! modifies in place and returns the same object
