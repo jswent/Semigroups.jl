@@ -1,0 +1,48 @@
+name: Documentation
+
+on: [pull_request, workflow_dispatch]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  docs:
+    name: "Build documentation"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - uses: julia-actions/cache@v2
+
+      # Build libsemigroups using ccache
+      - name: "Setup ccache . . ."
+        uses: Chocobo1/setup-ccache-action@v1
+        with:
+          update_packager_index: false
+          override_cache_key: ccache_docs_ubuntu-latest
+      - name: "Install libsemigroups . . ."
+        run: |
+          git clone --depth 1 --branch main https://github.com/libsemigroups/libsemigroups.git
+          cd libsemigroups
+          ./autogen.sh && ./configure CXX="ccache g++" CXXFLAGS="-O2" --disable-hpcombi && sudo make install -j4
+
+      # Build Semigroups.jl
+      - uses: julia-actions/julia-buildpkg@v1
+        with:
+          precompile: yes
+
+      # Build documentation
+      - name: Build documentation
+        run: |
+          julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+          julia --project=docs docs/make.jl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
