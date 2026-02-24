@@ -21,7 +21,6 @@ jobs:
       CC: gcc
       CXX: g++
       CXXFLAGS: -fdiagnostics-color -O2
-      LD_LIBRARY_PATH: /usr/local/lib
     steps:
       - uses: actions/checkout@v6
 
@@ -55,7 +54,7 @@ jobs:
 
       - uses: julia-actions/setup-julia@v2
         with:
-          version: "1"
+          version: "1.10"
 
       - uses: julia-actions/cache@v2
 
@@ -72,39 +71,4 @@ jobs:
         run: |
           julia --project=docs --color=yes docs/make.jl
         env:
-          DOCS_DEPLOY: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-
-      # Only upload artifact for fork PRs
-      - name: Upload documentation artifact
-        if: github.event.pull_request.head.repo.full_name != github.repository
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs-html
-          path: docs/build
-          if-no-files-found: error
-          retention-days: 7
-
-      # Generate comment for artifact build
-      # - uses: marocchino/sticky-pull-request-comment@v2
-      #   if: github.event.pull_request.head.repo.full_name != github.repository
-      #   with:
-      #     header: docs-preview
-      #     message: |
-      #       📦 Documentation built for this PR.
-      #
-      #       Since this PR originates from a fork, a preview deployment is not available.
-      #
-      #       Download the artifact from this workflow run:
-      #       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-      - uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          PR_NUMBER: ${{ github.event.number }}
-        with:
-          header: docs-preview
-          message: |
-            🚀 Documentation preview deployed.
-
-            Preview URL:
-            https://libsemigroups.github.io/Semigroups.jl/previews/PR${{ env.PR_NUMBER }}/
+          DOCS_DEPLOY: false
