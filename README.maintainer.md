@@ -22,6 +22,54 @@ The sources:
 
 [libsemigroups]: https://github.com/libsemigroups/libsemigroups
 
+## Version compatibility
+
+Starting with 0.1.2, `libsemigroups_julia_jll` declares an exact runtime
+compatibility constraint on the `libsemigroups_jll` version it was built
+against. Preserve this policy for future releases by setting both the build
+dependency and its `compat` in the wrapper's Yggdrasil recipe, for example:
+
+```julia
+Dependency("libsemigroups_jll", v"3.6.1"; compat="=3.6.1")
+```
+
+The build version alone does not constrain runtime resolution. Every kernel
+upgrade requires a new wrapper release, even if `deps/src/` has not changed.
+Wrapper versions are independent of `Semigroups.jl` versions; Julia-only
+changes may reuse the existing wrapper.
+
+For example, `Semigroups.jl` 0.1.3 requires wrapper 0.1.2 or later in the 0.1
+series and core 3.6.1. Wrapper 0.1.2 enforces core 3.6.1. A new recipe does not
+retroactively constrain older wrapper releases; corrections to their
+compatibility metadata require a separate General registry change.
+
+## Checking a release
+
+Use a fresh checkout without a `Manifest.toml` or local build artifacts, then
+resolve the registered dependencies and check the published binaries:
+
+```shell
+julia --startup-file=no --project=. -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate()'
+julia --startup-file=no --project=. test/check_jll.jl
+```
+
+The second command checks that the published wrapper loads its expected core
+artifact and reports the same core version it was compiled against. CI runs
+this check separately from the main suite so that C++ development can still
+test a locally rebuilt wrapper.
+
+Before releasing, also verify that `Semigroups.jl` selects the published
+wrapper, then run the full suite in the same Julia process:
+
+```shell
+julia --startup-file=no --project=. -e '
+    using Semigroups, libsemigroups_julia_jll
+    @assert realpath(Semigroups.libsemigroups_julia()) ==
+            realpath(libsemigroups_julia_jll.libsemigroups_julia)
+    include("test/runtests.jl")
+'
+```
+
 ## Updating just the C++ wrappers
 
 Suppose just the C++ wrappers need to be updated, without any changes to the
@@ -36,13 +84,14 @@ Suppose just the C++ wrappers need to be updated, without any changes to the
 3. Wait for this to be merged into Yggdrasil, and then wait for the registry
    to pick up the new version of `libsemigroups_julia_jll`.
 
-4. Bump the dependence in `Semigroups.jl` (in `Project.toml`) to whatever
-   version number was used in Step 2.
+4. Raise the minimum `libsemigroups_julia_jll` version in `Project.toml` to
+   the version used in Step 2. Follow [Checking a release](#checking-a-release)
+   to verify the registered prebuilt JLLs and run the package tests.
 
    Version compatibility notation: <https://pkgdocs.julialang.org/v1/compatibility/>
 
-5. Release a new `Semigroups.jl`. This is done by pinging JuliaRegistrator in
-   the comments of a commit.
+5. After these checks and CI pass, release a new `Semigroups.jl`. This is done
+   by pinging JuliaRegistrator in the comments of a commit.
     > See an example of the release comment [here](https://github.com/libsemigroups/Semigroups.jl/commit/eb34e11c46a737eedf1bf58bc3f7dbe07ac6338f#commitcomment-185167266)
 
 After the new version of `Semigroups.jl` is picked up by the registry, it may
@@ -64,18 +113,30 @@ build scripts because `libsemigroups_julia_jll` will need to point to the new
 2. Wait for the Yggdrasil merge, and wait for the registry.
     > _Note:_ steps 1 and 2 should be handled automatically by the [libsemigroups-yggdrasil-pr](https://github.com/libsemigroups-yggdrasil-pr/) bot
 
-3. Update the `libsemigroups_julia` build scripts with a new version and
-   `libsemigroups_jll` dependency.
+3. Open a separate Yggdrasil PR updating the `libsemigroups_julia` build
+   script with a new wrapper version. Set its `libsemigroups_jll` build
+   dependency to the new kernel version and add the corresponding exact
+   runtime `compat`, as shown above. Keep the wrapper source commit unless
+   source changes are also needed.
 
-At this point, we have a new `libsemigroups_julia_jll` in the works, and the
-steps are essentially Steps 3-5 in the previous section.
+4. Wait for the wrapper recipe to merge and the new `libsemigroups_julia_jll`
+   version to be registered in General.
 
-4. The usual waiting.
+5. Update both compatibility entries in `Semigroups.jl`'s `Project.toml`:
+   pin `libsemigroups_jll` to the new kernel version and raise the minimum
+   `libsemigroups_julia_jll` version to the newly registered wrapper. For
+   example:
 
-5. Bump the `libsemigroups_julia_jll` and `libsemigroups_jll` dependencies in
-   `Semigroups.jl` (in `Project.toml`).
+   ```toml
+   libsemigroups_jll = "=3.6.1"
+   libsemigroups_julia_jll = "0.1.2"
+   ```
 
-6. Release new `Semigroups.jl` version.
+6. Resolve dependencies in a fresh environment and run the tests against
+   the registered prebuilt JLLs, checking the versions and artifact paths
+   as described in [Checking a release](#checking-a-release). Release a new
+   `Semigroups.jl` version only after these checks and CI pass, using
+   JuliaRegistrator as in the wrapper-only release instructions.
 
 ## Updating both `libsemigroups_julia` and the libsemigroups kernel
 

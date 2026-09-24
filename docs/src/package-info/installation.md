@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Julia 1.9 or later
+- Julia 1.10 or later
 
 ## Installing `Semigroups.jl`
 

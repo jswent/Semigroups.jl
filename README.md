@@ -62,7 +62,7 @@ presented, semigroups and monoids. The main algorithms implemented in
 
 ## What is `Semigroups.jl`?
 
-`Semigroups.jl` is a package for Julia 1.9+ exposing much (but not all) of
+`Semigroups.jl` is a package for Julia 1.10+ exposing much (but not all) of
 the functionality of [libsemigroups][]. It is built with the help of the
 excellent library [CxxWrap.jl][], for which we are very grateful.
 

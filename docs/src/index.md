@@ -50,7 +50,7 @@ by [Jean-Eric Pin](https://www.irif.fr/~jep/).
 
 ## What is `Semigroups.jl`?
 
-`Semigroups.jl` is a package for Julia 1.9+ exposing much (but not all) of
+`Semigroups.jl` is a package for Julia 1.10+ exposing much (but not all) of
 the functionality of [libsemigroups](https://libsemigroups.github.io/libsemigroups/).
 It is built with the help of the excellent library
 [CxxWrap.jl](https://github.com/JuliaInterop/CxxWrap.jl), for which we are
