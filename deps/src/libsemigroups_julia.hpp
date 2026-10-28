@@ -44,8 +44,18 @@
 #undef __cpp_lib_is_constant_evaluated
 
 // libsemigroups headers (these transitively include fmt)
+#include <libsemigroups/bmat8.hpp>
 #include <libsemigroups/constants.hpp>
 #include <libsemigroups/types.hpp>
+
+// Disable CxxWrap mirroring for BMat8. Transf and Pperm
+// are by default not trivial.
+//
+namespace jlcxx {
+  template <>
+  struct IsMirroredType<libsemigroups::BMat8> : std::false_type {};
+}  // namespace jlcxx
+
 
 namespace libsemigroups_julia {
 

@@ -20,11 +20,8 @@
 
 #include <libsemigroups/bmat8.hpp>
 
-// Disable CxxWrap mirroring for BMat8
-namespace jlcxx {
-  template <>
-  struct IsMirroredType<libsemigroups::BMat8> : std::false_type {};
-}  // namespace jlcxx
+// NOTE: the IsMirroredType<BMat8> specialisation lives in
+// libsemigroups_julia.hpp so that every translation unit sees it.
 
 namespace libsemigroups_julia {
 
