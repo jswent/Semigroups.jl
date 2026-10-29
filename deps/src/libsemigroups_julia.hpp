@@ -56,7 +56,6 @@ namespace jlcxx {
   struct IsMirroredType<libsemigroups::BMat8> : std::false_type {};
 }  // namespace jlcxx
 
-
 namespace libsemigroups_julia {
 
   // Namespace aliases for convenience
