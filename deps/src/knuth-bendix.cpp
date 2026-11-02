@@ -79,8 +79,8 @@ namespace libsemigroups_julia {
 
     using CongruenceCommon = libsemigroups::detail::CongruenceCommon;
     using KBImpl           = libsemigroups::detail::KnuthBendixImpl<
-                  libsemigroups::detail::RewriteTrie,
-                  libsemigroups::ShortLexCompare>;
+        libsemigroups::detail::RewriteTrie,
+        libsemigroups::ShortLexCompare>;
     using KB = libsemigroups::KnuthBendix<word_type,
                                           libsemigroups::detail::RewriteTrie,
                                           libsemigroups::ShortLexCompare>;
