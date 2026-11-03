@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-26.04]
+        os: [ubuntu-26.04]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
@@ -31,8 +31,10 @@ jobs:
               PackageSpec(name="libsemigroups_jll", version="3.6.1"),
               PackageSpec(name="libsemigroups_julia_jll", version="0.1.3"),
             ])
-            using libsemigroups_jll
+            using libsemigroups_jll, libsemigroups_julia_jll
             write("/tmp/sg-core-path", libsemigroups_jll.artifact_dir)
+            write("/tmp/sg-wrapper-path", libsemigroups_julia_jll.find_artifact_dir())
+            write("/tmp/sg-depots", join(DEPOT_PATH, ":"))
             Pkg.status(; mode=PKGMODE_MANIFEST)
           '
       - name: Build and load the unchanged main sources

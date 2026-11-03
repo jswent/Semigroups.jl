@@ -15,10 +15,10 @@ results = []
 resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 
 
-def run(label, command, seconds=60, input_text=None, show=True):
+def run(label, command, seconds=60, input_text=None, show=True, env=None):
     print("\nPROBE " + label + " " + shlex.join(command), flush=True)
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                               stdin=subprocess.PIPE, text=True, start_new_session=True)
+                               stdin=subprocess.PIPE, text=True, start_new_session=True, env=env)
     expired = False
     try:
         output, _ = process.communicate(input=input_text, timeout=seconds)
@@ -97,6 +97,9 @@ probe.write_text('''# OpenAI Codex: reduce the first failing Knuth-Bendix test.
 if "default-abort" in ARGS
     ccall(:signal, Ptr{Cvoid}, (Cint, Ptr{Cvoid}), 6, C_NULL)
 end
+if "load-test" in ARGS
+    @eval using Test
+end
 using Semigroups, Libdl
 println("wrapper: ", Semigroups.libsemigroups_julia())
 println("loaded: ", filter(p -> occursin("semigroups", basename(p)), Libdl.dllist()))
@@ -125,4 +128,22 @@ end
 ''')
 for label, extra in [("julia-default-handler", []), ("julia-default-abort", ["default-abort"])]:
     run(label, ["julia", "--startup-file=no", "--project=.", str(probe), *extra], seconds=90)
+ci_flags = ["--startup-file=no", "--check-bounds=yes", "--compiled-modules=yes", "--depwarn=yes", "--code-coverage=user", "--project=."]
+run("julia-ci-flags", ["julia", *ci_flags, str(probe), "default-abort", "load-test"], seconds=120)
+suite = "ccall(:signal, Ptr{Cvoid}, (Cint, Ptr{Cvoid}), 6, C_NULL); include(\"test/runtests.jl\")"
+run("full-suite-normal-loading", ["julia", *ci_flags, "-e", suite], seconds=240)
+
+# Same existing native binary, with the published JLL redirected to that binary.
+# This is an isolated diagnostic depot, not a source or compiler change.
+depot = out / "isolated-depot"
+(depot / "artifacts").mkdir(parents=True)
+artifact = out / "local-wrapper"
+artifact.mkdir()
+(artifact / "lib").symlink_to(root / "deps/build", target_is_directory=True)
+old_hash = Path(Path("/tmp/sg-wrapper-path").read_text().strip()).name
+(depot / "artifacts/Overrides.toml").write_text(old_hash + " = " + json.dumps(str(artifact)) + "\n")
+isolated_env = dict(os.environ)
+isolated_env["JULIA_DEPOT_PATH"] = str(depot) + ":" + Path("/tmp/sg-depots").read_text().strip()
+run("julia-only-local", ["julia", *ci_flags, str(probe), "default-abort", "load-test"], seconds=150, env=isolated_env)
+run("full-suite-only-local", ["julia", *ci_flags, "-e", suite], seconds=240, env=isolated_env)
 print("FINAL RESULTS " + json.dumps(results), flush=True)
