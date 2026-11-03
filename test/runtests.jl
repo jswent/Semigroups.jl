@@ -12,6 +12,7 @@ using Test
 using Semigroups
 
 @testset "Semigroups.jl" begin
+    include("test_loading.jl")
     include("test_bmat8.jl")
     include("test_constants.jl")
     include("test_errors.jl")
