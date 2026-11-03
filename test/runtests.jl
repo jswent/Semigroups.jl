@@ -24,6 +24,7 @@ using Semigroups
     include("test_presentation_examples.jl")
     include("test_word_range.jl")
     include("test_froidure_pin_transf.jl")
+    include("test_froidure_pin_bmat8.jl")
     include("test_knuth_bendix_1.jl")
     include("test_knuth_bendix_6.jl")
     include("test_todd_coxeter.jl")

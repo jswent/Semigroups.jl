@@ -106,12 +106,9 @@ _cxx_element(x::BMat8) = x  # BMat8 is a direct alias
 Copy a raw CxxWrap element to produce an Allocated (owning) copy.
 Needed when iterating CxxWrap StdVectors, which yield Dereferenced
 references that don't own their memory.
-
-For Transf/PPerm/Perm types, calls LibSemigroups.copy().
-For BMat8, returns as-is (value type).
 """
-_copy_cxx_element(raw::Union{_TransfTypes,_PPermTypes,_PermTypes}) = LibSemigroups.copy(raw)
-_copy_cxx_element(raw::BMat8) = raw
+_copy_cxx_element(raw::Union{_TransfTypes,_PPermTypes,_PermTypes,BMat8}) =
+    LibSemigroups.copy(raw)
 
 """
     _fp_element_type(::Type{E}) -> Type
@@ -245,8 +242,8 @@ This is a convenience constructor equivalent to
 - `xs::E...`: zero or more additional generators of the same type.
 
 # Throws
-- `LibsemigroupsError`: if `degree(x) != degree(y)` for any generators
-  `x` and `y`.
+    - `LibsemigroupsError`: if `degree(x) != degree(y)` for any generators
+    `x` and `y`.
 
 # Example
 ```julia
