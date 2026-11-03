@@ -22,6 +22,8 @@ function __init__()
 end
 end
 
+# a small change which should trigger the CI
+
 @testset "Registered JLL binaries" begin
     core_version = Base.pkgversion(libsemigroups_jll)
     wrapper_version = Base.pkgversion(libsemigroups_julia_jll)
