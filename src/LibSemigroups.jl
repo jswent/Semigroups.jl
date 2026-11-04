@@ -17,13 +17,24 @@ module LibSemigroups
 
 using CxxWrap
 
-import ..Semigroups: libsemigroups_julia
+import ..Semigroups: libsemigroups_julia, _libsemigroups_julia, Setup
 
 # Load the C++ module - this creates all the wrapped types and functions
-# The library path is resolved by setup.jl and may be updated in __init__.
+# The library is selected without importing the wrapper JLL.
 @wrapmodule(libsemigroups_julia, :define_julia_module)
 
 function __init__()
+    # Submodule initialization precedes Semigroups.__init__. Resolve the path
+    # here, before CxxWrap registers any runtime pointers.
+    path = Setup.locate_library()
+    if Setup.canonical_path(path) != Setup.canonical_path(_libsemigroups_julia[])
+        error(
+            "The selected libsemigroups_julia wrapper changed since precompilation. " *
+            "Restart Julia and run Base.compilecache(Base.identify_package(\"Semigroups\")) " *
+            "before loading Semigroups.",
+        )
+    end
+    _libsemigroups_julia[] = path
     @initcxx
 end
 

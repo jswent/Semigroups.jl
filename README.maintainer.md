@@ -63,12 +63,59 @@ wrapper, then run the full suite in the same Julia process:
 
 ```shell
 julia --startup-file=no --project=. -e '
-    using Semigroups, libsemigroups_julia_jll
-    @assert realpath(Semigroups.libsemigroups_julia()) ==
-            realpath(libsemigroups_julia_jll.libsemigroups_julia)
+    using Semigroups
+    @assert Semigroups._libsemigroups_julia_source() == "JLL"
     include("test/runtests.jl")
 '
 ```
+
+## Wrapper selection and local development
+
+Semigroups inspects the wrapper package's artifact metadata before loading any
+wrapper binary. Registered installations use the published artifact. A checkout
+also uses it when its C++ source tree matches the artifact's recorded tree hash;
+otherwise it builds the bundled sources. CxxWrap loads only the selected binary.
+Importing `libsemigroups_julia_jll` first in a development session can load an
+incompatible published wrapper; Semigroups rejects that combination and asks for
+a fresh Julia process.
+
+Local builds live in `deps/build-<Julia version>`. Their build record includes
+the source hash, Julia version and revision, platform, and native dependency
+locations. A change to the native configuration triggers a clean build;
+source-only changes can reuse CMake's incremental build. Builds are protected by
+a process lock. C++ source changes also invalidate Julia's precompiled bindings.
+
+Standard JLL overrides take precedence over automatic source selection. To use
+an installation prefix containing `lib/libsemigroups_julia.so` (or `.dylib` on
+macOS), add this to a depot's `artifacts/Overrides.toml`:
+
+```toml
+[49785210-2e0e-5fa7-bc86-ac158b29c4ea]
+libsemigroups_julia = "/absolute/path/to/prefix"
+```
+
+Alternatively, the JLL's standard `libsemigroups_julia_path` preference can
+select a specific library without importing the JLL:
+
+```julia
+using Preferences
+set_preferences!(
+    Base.UUID("49785210-2e0e-5fa7-bc86-ac158b29c4ea"),
+    "libsemigroups_julia_path" => "/absolute/path/to/libsemigroups_julia.so",
+)
+```
+
+Use a fresh Julia process after changing a wrapper or override. After changing
+an override, regenerate bindings with
+`Base.compilecache(Base.identify_package("Semigroups"))` before
+loading Semigroups. Cached bindings are not silently reused against a
+different library. `Semigroups.versioninfo()` reports the selected source, and
+`Semigroups.libsemigroups_julia()` returns its path without loading another JLL.
+
+Run `julia --startup-file=no --project=. test/check_loading.jl` to test normal
+and cached loading, both override mechanisms, and rejection of a conflicting
+preloaded wrapper. Keep `test/check_jll.jl` in a separate process: it deliberately
+imports and tests the published wrapper.
 
 ## Updating just the C++ wrappers
 

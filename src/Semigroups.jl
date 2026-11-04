@@ -12,7 +12,6 @@ import Dates
 import Libdl
 using Dates: TimePeriod, Nanosecond
 using libsemigroups_jll
-using libsemigroups_julia_jll
 
 # ============================================================================
 # Debug mode
@@ -148,20 +147,15 @@ function _loaded_libsemigroups_source()
 end
 
 function _libsemigroups_julia_source()
-    path = libsemigroups_julia()
-    if _path_is_within(path, libsemigroups_julia_jll.find_artifact_dir())
-        return "JLL"
-    elseif _path_is_within(path, Setup.build_dir())
-        return "dev/local"
-    else
-        return "unknown"
-    end
+    return Setup.library_source[]
 end
 
 function _libsemigroups_julia_version()
     source = _libsemigroups_julia_source()
     if source == "JLL"
-        return string(Base.pkgversion(libsemigroups_julia_jll))
+        return Setup.jll_version()
+    elseif source == "override"
+        return "unknown"
     else
         return _version_string(VERSION_NUMBER)
     end
@@ -243,12 +237,6 @@ end
 
 # Module initialization
 function __init__()
-    # Re-check at runtime because Julia precompilation does not track deps/src.
-    _libsemigroups_julia[] = Setup.locate_library()
-
-    # Initialize the CxxWrap module
-    LibSemigroups.__init__()
-
     if AbstractAlgebra.should_show_banner()
         _print_banner()
     end

@@ -54,6 +54,10 @@ jobs:
       - name: Check registered JLL binaries
         run: julia --startup-file=no --project=. test/check_jll.jl
 
+      - name: Check wrapper loading in fresh processes
+        timeout-minutes: 15
+        run: julia --startup-file=no --project=. test/check_loading.jl
+
       # Run the tests
       - uses: julia-actions/julia-runtest@v1
 

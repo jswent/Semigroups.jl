@@ -33,7 +33,7 @@ build:
 
 clean:
 	rm -rf docs/build
-	rm -rf deps/build
+	rm -rf deps/build deps/build-*/
 	rm -f deps/lib/*.dylib deps/lib/*.so
 
 format: format-julia format-cpp
