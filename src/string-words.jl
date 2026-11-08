@@ -103,7 +103,7 @@ Base.get(r::StringRange) =
 first_word(r::StringRange) = _word_from_cpp(String, LibSemigroups.first(_native(r)))
 last_word(r::StringRange) = _word_from_cpp(String, LibSemigroups.last(_native(r)))
 at_end(r::StringRange) = LibSemigroups.at_end(_native(r))
-Base.isdone(r::StringRange) = at_end(r)
+Base.isdone(r::StringRange, state = nothing) = at_end(r)
 next!(r::StringRange) = (LibSemigroups.next!(_native(r)); r)
 init!(r::StringRange) = (LibSemigroups.init!(_native(r)); r)
 AbstractAlgebra.order(r::StringRange) = LibSemigroups.order(_native(r))

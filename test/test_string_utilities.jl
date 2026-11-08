@@ -76,6 +76,23 @@ using Semigroups
         @test_throws ArgumentError set_last!(StringRange("ba"), "c")
     end
 
+    @testset "zip preserves unconsumed words" begin
+        for longer_first in (true, false)
+            longer = StringRange("ab")
+            set_min!(longer, 1)
+            set_max!(longer, 3)
+            shorter = StringRange("x")
+            set_min!(shorter, 1)
+            set_max!(shorter, 2)
+
+            zipped = longer_first ? zip(longer, shorter) : zip(shorter, longer)
+            expected = longer_first ? [("a", "x")] : [("x", "a")]
+            @test collect(zipped) == expected
+            @test get(longer) == "b"
+            @test at_end(shorter)
+        end
+    end
+
     @testset "string comparisons use character order" begin
         @test lex_less("", "a")
         @test lex_less("a", "b")
