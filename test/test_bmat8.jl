@@ -104,9 +104,8 @@ using Semigroups
 
         @test_throws LibsemigroupsError one(x, -1)
         @test_throws LibsemigroupsError one(BMat8, -1)
-        # TODO uncomment the next tests when we require libsemigroups v3.5.1
-        # @test_throws LibsemigroupsError one(x, 9)
-        # @test_throws LibsemigroupsError one(BMat8, 9)
+        @test_throws LibsemigroupsError one(x, 9)
+        @test_throws LibsemigroupsError one(BMat8, 9)
     end
 
     @testset "random" begin

@@ -519,8 +519,10 @@ BMat8([[1, 0, 0, 0],
        [0, 0, 0, 1]])
 ```
 """
-Base.one(::Type{BMat8}, n::Int64)::BMat8 =
-    @wrap_libsemigroups_call LibSemigroups.bmat8_one(n)
+function Base.one(::Type{BMat8}, n::Int64)::BMat8
+    0 <= n <= 8 || throw(LibsemigroupsError("identity matrix dimension must be in [0, 8]"))
+    return @wrap_libsemigroups_call LibSemigroups.bmat8_one(n)
+end
 
 """
     one(sample::BMat8, dim::Int64) -> BMat8
@@ -556,7 +558,7 @@ BMat8([[1, 0, 0, 0],
        [0, 0, 0, 1]])
 ```
 """
-Base.one(::BMat8, n::Int64)::BMat8 = @wrap_libsemigroups_call LibSemigroups.bmat8_one(n)
+Base.one(::BMat8, n::Int64)::BMat8 = Base.one(BMat8, n)
 
 """
     random(::Type{BMat8}, dim::Int64) -> BMat8
