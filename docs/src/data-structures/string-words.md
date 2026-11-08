@@ -91,6 +91,9 @@ integer presentation labels. Their explicit empty alphabet accepts only the
 empty word; it does not request a default alphabet. Converters retain a snapshot
 of their alphabet.
 
+Froidure–Pin conversion uses the same human-readable alphabet mapping for both
+generator names and relations, including alphabets larger than 26 letters.
+
 Graph edges and Froidure–Pin factorisations remain integer generator positions.
 Use `Iterators.map(ToString("ab"), paths(g; source=1, max=3))` for a lazy string
 view, or apply the converter to a factorisation. Presentation examples can be

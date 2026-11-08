@@ -21,7 +21,9 @@
 
 #include "libsemigroups_julia.hpp"
 
+#include <libsemigroups/froidure-pin-base.hpp>
 #include <libsemigroups/presentation.hpp>
+#include <libsemigroups/to-presentation.hpp>
 
 #include <stdexcept>
 #include <string>
@@ -55,6 +57,28 @@ namespace libsemigroups_julia {
     Result result = libsemigroups::v4::to<Result>(p);
     check_presentation_alphabet(result);
     return result;
+  }
+
+  template <typename Word>
+  libsemigroups::Presentation<Word>
+  froidure_pin_presentation(libsemigroups::FroidurePinBase& fp) {
+    if constexpr (std::is_same_v<Word, std::string>) {
+      if (fp.number_of_generators() > 128) {
+        throw std::invalid_argument(
+            "a string presentation supports at most 128 ASCII letters");
+      }
+    }
+    // The v3.6.1 direct string conversion labels its alphabet consecutively
+    // from 'a', but labels rule letters with human_readable_letter. These
+    // disagree beyond 26 generators. Convert one consistent numeric
+    // presentation instead, so the same bijection maps alphabet and rules.
+    auto numeric = libsemigroups::to<
+        libsemigroups::Presentation<libsemigroups::word_type>>(fp);
+    if constexpr (std::is_same_v<Word, libsemigroups::word_type>) {
+      return numeric;
+    } else {
+      return convert_presentation<Word>(numeric);
+    }
   }
 }  // namespace libsemigroups_julia
 

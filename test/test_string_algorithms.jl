@@ -239,3 +239,32 @@ end
         @test number_of_classes(deepcopy(from_fp)) == 6
     end
 end
+
+@testset "FroidurePin presentation labels use one alphabet mapping" begin
+    # All named generators denote the same idempotent. Above 26 labels the
+    # native 3.6.1 string converter used different labels in alphabet and rules.
+    for n in (26, 27, 31, 32, 63, 128)
+        fp = FroidurePin([Transf([1]) for _ = 1:n])
+        p = to(Presentation{String}, fp)
+        @test length(alphabet(p)) == n
+        @test isascii(alphabet(p))
+        @test throw_if_bad_alphabet_or_rules(p) === nothing
+        @test to(Presentation{Vector{Int}}, p) == to(Presentation{Vector{Int}}, fp)
+        @test number_of_classes(ToddCoxeter(twosided, p)) == 1
+        n >= 63 && @test '\0' in alphabet(p)
+    end
+
+    fp = FroidurePin([Transf([1]) for _ = 1:27])
+    p = to(Presentation{String}, fp)
+    @test alphabet(p) == "abcdefghijklmnopqrstuvwxyzA"
+    @test number_of_classes(to(KnuthBendix{String}, twosided, fp)) == 1
+    # Also exercise the independent native FP-to-KB factory used by bindings.
+    native_kb = Semigroups.LibSemigroups.to_knuth_bendix_from_fpb_string(
+        twosided,
+        Semigroups._native(fp),
+    )
+    @test Semigroups.LibSemigroups.number_of_classes(native_kb) == 1
+    @test alphabet(
+        to(Presentation{String}, fp; alphabet = "abcdefghijklmnopqrstuvwxyz{"),
+    ) == "abcdefghijklmnopqrstuvwxyz{"
+end

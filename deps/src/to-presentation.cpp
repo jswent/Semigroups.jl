@@ -88,8 +88,11 @@ namespace libsemigroups_julia {
 
     template <typename Word, typename E>
     void define_froidure_pin_to_presentation(jl::Module& m, char const* name) {
-      define_algorithm_to_presentation<Word, libsemigroups::FroidurePin<E>>(
-          m, name);
+      m.method(name,
+               [](libsemigroups::FroidurePin<E>& fp)
+                   -> libsemigroups::Presentation<Word> {
+                 return froidure_pin_presentation<Word>(fp);
+               });
     }
 
     template <typename Word>

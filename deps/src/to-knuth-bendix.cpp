@@ -47,9 +47,7 @@ namespace libsemigroups_julia {
     m.method(fp_name,
              [](libsemigroups::congruence_kind  knd,
                 libsemigroups::FroidurePinBase& fpb) -> jl::BoxedValue<KB> {
-               auto p
-                   = libsemigroups::to<libsemigroups::Presentation<Word>>(fpb);
-               check_presentation_alphabet(p);
+               auto p = froidure_pin_presentation<Word>(fpb);
                return jl::create<KB>(knd, std::move(p));
              });
     define_tc_to_kb<Word, libsemigroups::word_type>(m, tc_name);

@@ -278,13 +278,6 @@ function to(
             length(target_alphabet) != n &&
             throw(ArgumentError("the target alphabet must have $n letters"))
     end
-    # An explicit alphabet is not constrained by the native FroidurePin-to-string
-    # conversion's consecutive-byte default. Translate the numeric presentation
-    # through alphabet positions instead, after validating the requested labels.
-    if W === String && source isa FroidurePin && target_alphabet !== nothing
-        numeric = to(Presentation{Vector{Int}}, source)
-        return to(Presentation{String}, numeric; alphabet = target_alphabet)
-    end
     native = @wrap_libsemigroups_call _to_presentation_native(W, _native(source))
     result = _wrap_presentation(native)
     target_alphabet === nothing || change_alphabet!(result, target_alphabet)
