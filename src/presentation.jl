@@ -1197,7 +1197,9 @@ function to_gap_string(p::Presentation, var_name::AbstractString = "p")
 end
 
 Base.:(==)(a::Presentation, b::Presentation) =
-    _word_type(a) === _word_type(b) && LibSemigroups.is_equal(_native(a), _native(b))
+    _word_type(a) === _word_type(b) &&
+    contains_empty_word(a) == contains_empty_word(b) &&
+    LibSemigroups.is_equal(_native(a), _native(b))
 
 """
     Base.isempty(p::Presentation) -> Bool
@@ -1413,7 +1415,9 @@ throw_if_bad_alphabet_rules_or_inverses(ip::InversePresentation) = (
 
 # Equality that accounts for inverses (not the base `Presentation ==`).
 Base.:(==)(a::InversePresentation, b::InversePresentation) =
-    _word_type(a) === _word_type(b) && LibSemigroups.is_equal_inv(_native(a), _native(b))
+    _word_type(a) === _word_type(b) &&
+    contains_empty_word(a) == contains_empty_word(b) &&
+    LibSemigroups.is_equal_inv(_native(a), _native(b))
 
 # Forgetting an inverse map is an explicit Presentation(ip) conversion. In
 # particular, equality must remain transitive when inverse maps differ.

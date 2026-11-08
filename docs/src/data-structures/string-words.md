@@ -36,6 +36,11 @@ when defining a quotient of a free monoid. Otherwise empty relation words and
 empty algorithm query words are rejected. An empty alphabet and the empty word
 are different concepts.
 
+Presentation equality includes the empty-word setting as well as the alphabet
+and relations. Inverse presentations also compare their inverse maps. Thus a
+semigroup presentation and its corresponding monoid presentation are distinct
+dictionary keys even when they have the same written relations.
+
 ## Symbols, positions, and ordering
 
 Letters are `Char` values in string presentations. Alphabet positions, rule
