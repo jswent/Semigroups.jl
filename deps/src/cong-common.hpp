@@ -76,6 +76,9 @@ namespace libsemigroups_julia {
              [](Thing& self, WordInput<Word> u, WordInput<Word> v) -> bool {
                Word uw = native_word<Word>(u);
                Word vw = native_word<Word>(v);
+               // The native free-KnuthBendix shortcut skips these checks.
+               self.throw_if_letter_not_in_alphabet(uw.begin(), uw.end());
+               self.throw_if_letter_not_in_alphabet(vw.begin(), vw.end());
                return libsemigroups::congruence_common::contains(self, uw, vw);
              });
 

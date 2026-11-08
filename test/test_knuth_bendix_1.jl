@@ -1317,4 +1317,30 @@ end
         kbq = KnuthBendix(twosided, q)
         @test_throws LibsemigroupsError non_trivial_classes(kbq, kbp)
     end
+
+    @testset "checked free-word inputs" begin
+        for alphabet in ("a", [1])
+            strings = alphabet isa String
+            valid = strings ? "a" : [1]
+            longer = strings ? "aa" : [1, 1]
+            invalid = strings ? "z" : [2]
+            epsilon = strings ? "" : Int[]
+            p = Presentation(alphabet)
+            kb = KnuthBendix(twosided, p)
+
+            @test Semigroups.contains(kb, valid, valid)
+            @test !Semigroups.contains(kb, valid, longer)
+            for bad in (invalid, epsilon)
+                @test_throws LibsemigroupsError Semigroups.contains(kb, bad, valid)
+                @test_throws LibsemigroupsError Semigroups.contains(kb, valid, bad)
+                @test_throws LibsemigroupsError Semigroups.contains(kb, bad, bad)
+            end
+
+            set_contains_empty_word!(p, true)
+            monoid = KnuthBendix(twosided, p)
+            @test Semigroups.contains(monoid, epsilon, epsilon)
+            @test !Semigroups.contains(monoid, epsilon, valid)
+            @test !Semigroups.contains(monoid, valid, epsilon)
+        end
+    end
 end
