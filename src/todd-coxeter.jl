@@ -281,6 +281,8 @@ Returns `tc` for chaining.
 - `LibsemigroupsError` if `kind` and `other.kind()` are incompatible
   (ToddCoxeter form). The compatible pairs `(other.kind(), kind)` are
   `(onesided, onesided)`, `(twosided, onesided)`, and `(twosided, twosided)`.
+- `ArgumentError` if a graph has more than 128 edge labels and `tc` uses
+  string words. This check leaves `tc` unchanged.
 """
 function init!(tc::ToddCoxeter)
     @wrap_libsemigroups_call LibSemigroups.init!(_native(tc))
@@ -300,6 +302,9 @@ function init!(tc::ToddCoxeter, kind::congruence_kind, other::ToddCoxeter)
 end
 
 function init!(tc::ToddCoxeter, kind::congruence_kind, wg::WordGraph)
+    if tc isa ToddCoxeter{String} && out_degree(wg) > 128
+        throw(ArgumentError("an ASCII word graph supports at most 128 edge labels"))
+    end
     @wrap_libsemigroups_call LibSemigroups.init!(_native(tc), kind, wg)
     return tc
 end
