@@ -247,7 +247,7 @@ using Semigroups
         set_alphabet!(p, [1, 2])
         ip = InversePresentation(p)
         @test ip isa InversePresentation
-        @test ip isa Presentation                   # CxxWrap inheritance chain
+        @test ip isa Presentation                   # shared public presentation interface
         @test alphabet(ip) == [1, 2]
 
         # Copy ctor
@@ -475,7 +475,7 @@ using Semigroups
         @test rules(p) == [([1, 1], [1]), ([2, 2], [2])]
 
         # Binding-surface: rules_vector is a callable C++ method on Presentation.
-        flat = Semigroups.LibSemigroups.rules_vector(p)
+        flat = Semigroups.LibSemigroups.rules_vector(Semigroups._native(p))
         @test length(flat) == 2 * number_of_rules(p)
     end
 
@@ -519,10 +519,10 @@ using Semigroups
     @testset "binding surface" begin
         LS = Semigroups.LibSemigroups
         # Scalar / reference signatures - hasmethod with concrete types works.
-        @test hasmethod(LS.first_unused_letter, Tuple{Presentation})
-        @test hasmethod(LS.longest_rule_index, Tuple{Presentation})
-        @test hasmethod(LS.shortest_rule_index, Tuple{Presentation})
-        @test hasmethod(LS.rules_vector, Tuple{Presentation})
+        @test hasmethod(LS.first_unused_letter, Tuple{LS.Presentation})
+        @test hasmethod(LS.longest_rule_index, Tuple{LS.Presentation})
+        @test hasmethod(LS.shortest_rule_index, Tuple{LS.Presentation})
+        @test hasmethod(LS.rules_vector, Tuple{LS.Presentation})
 
         # Vector-input methods: CxxWrap's ArrayRef<size_t> maps to a concrete
         # Julia method signature that is tricky to spell as a `Tuple{...}`, so

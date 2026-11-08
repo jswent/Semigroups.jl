@@ -17,6 +17,7 @@
 //
 
 #include "libsemigroups_julia.hpp"
+#include "word-transport.hpp"
 
 #include <libsemigroups/order.hpp>
 #include <libsemigroups/types.hpp>
@@ -28,9 +29,44 @@
 
 namespace libsemigroups_julia {
 
-  // Copy a Julia-owned array view into an owned word_type.
-  static libsemigroups::word_type _to_word(jlcxx::ArrayRef<size_t> a) {
-    return libsemigroups::word_type(a.begin(), a.end());
+  template <typename Word>
+  void define_word_comparisons(jl::Module& m) {
+    // Register the same comparisons for both native word representations.
+    m.method("lexicographical_compare",
+             [](WordInput<Word> x, WordInput<Word> y) -> bool {
+               return libsemigroups::lexicographical_compare(
+                   native_word<Word>(x), native_word<Word>(y));
+             });
+    m.method("shortlex_compare",
+             [](WordInput<Word> x, WordInput<Word> y) -> bool {
+               return libsemigroups::shortlex_compare(native_word<Word>(x),
+                                                      native_word<Word>(y));
+             });
+    m.method("recursive_path_compare",
+             [](WordInput<Word> x, WordInput<Word> y) -> bool {
+               return libsemigroups::recursive_path_compare(
+                   native_word<Word>(x), native_word<Word>(y));
+             });
+
+    // Weighted variants — take an extra weights vector.
+    m.method("wt_shortlex_compare",
+             [](WordInput<Word>         x,
+                WordInput<Word>         y,
+                jlcxx::ArrayRef<size_t> weights) -> bool {
+               return libsemigroups::wt_shortlex_compare(
+                   native_word<Word>(x),
+                   native_word<Word>(y),
+                   std::vector<size_t>(weights.begin(), weights.end()));
+             });
+    m.method("wt_lex_compare",
+             [](WordInput<Word>         x,
+                WordInput<Word>         y,
+                jlcxx::ArrayRef<size_t> weights) -> bool {
+               return libsemigroups::wt_lex_compare(
+                   native_word<Word>(x),
+                   native_word<Word>(y),
+                   std::vector<size_t>(weights.begin(), weights.end()));
+             });
   }
 
   void define_order(jl::Module& m) {
@@ -44,41 +80,8 @@ namespace libsemigroups_julia {
     m.set_const("order_lex", Order::lex);
     m.set_const("order_recursive", Order::recursive);
 
-    // Compare free functions — instantiated for word_type.
-    m.method("lexicographical_compare",
-             [](jlcxx::ArrayRef<size_t> x, jlcxx::ArrayRef<size_t> y) -> bool {
-               return libsemigroups::lexicographical_compare(_to_word(x),
-                                                             _to_word(y));
-             });
-    m.method("shortlex_compare",
-             [](jlcxx::ArrayRef<size_t> x, jlcxx::ArrayRef<size_t> y) -> bool {
-               return libsemigroups::shortlex_compare(_to_word(x), _to_word(y));
-             });
-    m.method("recursive_path_compare",
-             [](jlcxx::ArrayRef<size_t> x, jlcxx::ArrayRef<size_t> y) -> bool {
-               return libsemigroups::recursive_path_compare(_to_word(x),
-                                                            _to_word(y));
-             });
-
-    // Weighted variants — take an extra weights vector.
-    m.method("wt_shortlex_compare",
-             [](jlcxx::ArrayRef<size_t> x,
-                jlcxx::ArrayRef<size_t> y,
-                jlcxx::ArrayRef<size_t> weights) -> bool {
-               return libsemigroups::wt_shortlex_compare(
-                   _to_word(x),
-                   _to_word(y),
-                   std::vector<size_t>(weights.begin(), weights.end()));
-             });
-    m.method("wt_lex_compare",
-             [](jlcxx::ArrayRef<size_t> x,
-                jlcxx::ArrayRef<size_t> y,
-                jlcxx::ArrayRef<size_t> weights) -> bool {
-               return libsemigroups::wt_lex_compare(
-                   _to_word(x),
-                   _to_word(y),
-                   std::vector<size_t>(weights.begin(), weights.end()));
-             });
+    define_word_comparisons<libsemigroups::word_type>(m);
+    define_word_comparisons<std::string>(m);
   }
 
 }  // namespace libsemigroups_julia

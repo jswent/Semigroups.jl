@@ -29,4 +29,7 @@ using Semigroups
     include("test_todd_coxeter.jl")
     include("test_kambites.jl")
     include("test_to.jl")
+    include("test_string_presentation.jl")
+    include("test_string_algorithms.jl")
+    include("test_string_utilities.jl")
 end

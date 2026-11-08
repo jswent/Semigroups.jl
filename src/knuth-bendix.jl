@@ -38,11 +38,10 @@ presentation. The second form copies an existing `KnuthBendix`.
 # Throws
 
 - `LibsemigroupsError` if `p` is not valid.
-- `LibsemigroupsError` if `p` has more than 256 letters in its alphabet
+- `LibsemigroupsError` if `p` has more than 128 letters in its alphabet
   (the internal rewriting trie uses 1-byte letter indices).
 
-!!! warning "v1 limitation"
-    v1 of Semigroups.jl binds `KnuthBendix{word_type, RewriteTrie}` only.
+Words use the representation of the input presentation: integer vectors or ASCII strings.
 
 # Example
 
@@ -73,7 +72,25 @@ confluent(kb)                           # true
 number_of_classes(kb)                   # POSITIVE_INFINITY
 ```
 """
-const KnuthBendix = LibSemigroups.KnuthBendixRewriteTrie
+struct KnuthBendix{W,B} <: CongruenceCommon{W}
+    cxx_obj::B
+end
+
+_native_algorithm(::Type{KnuthBendix}, ::Type{Vector{Int}}) =
+    LibSemigroups.KnuthBendixRewriteTrie
+_native_algorithm(::Type{KnuthBendix}, ::Type{String}) = LibSemigroups.KnuthBendixString
+_wrap_knuth_bendix(x::LibSemigroups.KnuthBendixRewriteTrie) =
+    KnuthBendix{Vector{Int},typeof(x)}(x)
+_wrap_knuth_bendix(x::LibSemigroups.KnuthBendixString) = KnuthBendix{String,typeof(x)}(x)
+KnuthBendix{W}() where {W} = _wrap_knuth_bendix(_native_algorithm(KnuthBendix, W)())
+KnuthBendix() = KnuthBendix{Vector{Int}}()
+KnuthBendix(other::KnuthBendix{W}) where {W} = _wrap_knuth_bendix(
+    @wrap_libsemigroups_call _native_algorithm(KnuthBendix, W)(_native(other))
+)
+
+KnuthBendix(kind::congruence_kind, p::Presentation{W}) where {W} =
+    init!(KnuthBendix{W}(), kind, p)
+
 
 """
     overlap_ABC
@@ -129,20 +146,21 @@ from `kind` and `p`.
 # Throws
 
 - `LibsemigroupsError` if `p` is not valid (three-argument form).
-- `LibsemigroupsError` if `p` has more than 256 letters in its alphabet
+- `LibsemigroupsError` if `p` has more than 128 letters in its alphabet
   (three-argument form).
 
 !!! warning
     At present it is only possible to create `KnuthBendix` objects from
-    presentations with at most 256 letters in the alphabet.
+    presentations with at most 128 letters in the alphabet.
 """
 function init!(kb::KnuthBendix)
-    @wrap_libsemigroups_call LibSemigroups.init!(kb)
+    @wrap_libsemigroups_call LibSemigroups.init!(_native(kb))
     return kb
 end
 
 function init!(kb::KnuthBendix, kind::congruence_kind, p::Presentation)
-    @wrap_libsemigroups_call LibSemigroups.init!(kb, kind, p)
+    _require_same_word_type(kb, p)
+    @wrap_libsemigroups_call LibSemigroups.init!(_native(kb), kind, _native(p))
     return kb
 end
 
@@ -163,7 +181,7 @@ default value is `128`. Set to `1` to process each rule immediately.
 
 [`max_pending_rules!`](@ref Semigroups.max_pending_rules!)
 """
-max_pending_rules(kb::KnuthBendix) = Int(LibSemigroups.max_pending_rules(kb))
+max_pending_rules(kb::KnuthBendix) = Int(LibSemigroups.max_pending_rules(_native(kb)))
 
 """
     max_pending_rules!(kb::KnuthBendix, n::Integer) -> KnuthBendix
@@ -179,7 +197,7 @@ to `1` to process each new rule immediately as it is created.
 [`max_pending_rules`](@ref Semigroups.max_pending_rules)
 """
 function max_pending_rules!(kb::KnuthBendix, n::Integer)
-    LibSemigroups.set_max_pending_rules!(kb, UInt(n))
+    LibSemigroups.set_max_pending_rules!(_native(kb), UInt(n))
     return kb
 end
 
@@ -198,7 +216,7 @@ checked mid-run.
 [`run!`](@ref Semigroups.run!)
 """
 check_confluence_interval(kb::KnuthBendix) =
-    Int(LibSemigroups.check_confluence_interval(kb))
+    Int(LibSemigroups.check_confluence_interval(_native(kb)))
 
 """
     check_confluence_interval!(kb::KnuthBendix, n::Integer) -> KnuthBendix
@@ -216,7 +234,7 @@ default is `4096`. Set to `LIMIT_MAX` to disable mid-run confluence checks.
 [`run!`](@ref Semigroups.run!)
 """
 function check_confluence_interval!(kb::KnuthBendix, n::Integer)
-    LibSemigroups.set_check_confluence_interval!(kb, UInt(n))
+    LibSemigroups.set_check_confluence_interval!(_native(kb), UInt(n))
     return kb
 end
 
@@ -234,7 +252,7 @@ system being confluent.
 
 [`max_overlap!`](@ref Semigroups.max_overlap!)
 """
-max_overlap(kb::KnuthBendix) = Int(LibSemigroups.max_overlap(kb))
+max_overlap(kb::KnuthBendix) = Int(LibSemigroups.max_overlap(_native(kb)))
 
 """
     max_overlap!(kb::KnuthBendix, n::Integer) -> KnuthBendix
@@ -250,7 +268,7 @@ rule, `run!` may terminate without producing a confluent system.
 [`max_overlap`](@ref Semigroups.max_overlap), [`run!`](@ref Semigroups.run!)
 """
 function max_overlap!(kb::KnuthBendix, n::Integer)
-    LibSemigroups.set_max_overlap!(kb, UInt(n))
+    LibSemigroups.set_max_overlap!(_native(kb), UInt(n))
     return kb
 end
 
@@ -268,7 +286,7 @@ default is `POSITIVE_INFINITY`.
 
 [`max_rules!`](@ref Semigroups.max_rules!)
 """
-max_rules(kb::KnuthBendix) = Int(LibSemigroups.max_rules(kb))
+max_rules(kb::KnuthBendix) = Int(LibSemigroups.max_rules(_native(kb)))
 
 """
     max_rules!(kb::KnuthBendix, n::Integer) -> KnuthBendix
@@ -285,7 +303,7 @@ terminate early and the system may not be confluent. The default is
 [`max_rules`](@ref Semigroups.max_rules), [`run!`](@ref Semigroups.run!)
 """
 function max_rules!(kb::KnuthBendix, n::Integer)
-    LibSemigroups.set_max_rules!(kb, UInt(n))
+    LibSemigroups.set_max_rules!(_native(kb), UInt(n))
     return kb
 end
 
@@ -303,7 +321,7 @@ Semigroups.overlap_ABC), [`overlap_AB_BC`](@ref Semigroups.overlap_AB_BC), and
 
 [`overlap_policy!`](@ref Semigroups.overlap_policy!)
 """
-overlap_policy(kb::KnuthBendix) = LibSemigroups.overlap_policy(kb)
+overlap_policy(kb::KnuthBendix) = LibSemigroups.overlap_policy(_native(kb))
 
 """
     overlap_policy!(kb::KnuthBendix, val) -> KnuthBendix
@@ -320,7 +338,7 @@ Semigroups.overlap_ABC), [`overlap_AB_BC`](@ref Semigroups.overlap_AB_BC), or
 [`overlap_policy`](@ref Semigroups.overlap_policy)
 """
 function overlap_policy!(kb::KnuthBendix, val)
-    LibSemigroups.set_overlap_policy!(kb, val)
+    LibSemigroups.set_overlap_policy!(_native(kb), val)
     return kb
 end
 
@@ -340,7 +358,8 @@ Knuth-Bendix algorithm runs.
 
 Constant.
 """
-number_of_active_rules(kb::KnuthBendix) = Int(LibSemigroups.number_of_active_rules(kb))
+number_of_active_rules(kb::KnuthBendix) =
+    Int(LibSemigroups.number_of_active_rules(_native(kb)))
 
 """
     number_of_inactive_rules(kb::KnuthBendix) -> Int
@@ -354,7 +373,8 @@ used for rewriting.
 
 Constant.
 """
-number_of_inactive_rules(kb::KnuthBendix) = Int(LibSemigroups.number_of_inactive_rules(kb))
+number_of_inactive_rules(kb::KnuthBendix) =
+    Int(LibSemigroups.number_of_inactive_rules(_native(kb)))
 
 """
     number_of_pending_rules(kb::KnuthBendix) -> Int
@@ -370,7 +390,8 @@ when a `KnuthBendix` is constructed.
 
 Constant.
 """
-number_of_pending_rules(kb::KnuthBendix) = Int(LibSemigroups.number_of_pending_rules(kb))
+number_of_pending_rules(kb::KnuthBendix) =
+    Int(LibSemigroups.number_of_pending_rules(_native(kb)))
 
 """
     total_rules(kb::KnuthBendix) -> Int
@@ -387,7 +408,7 @@ because rules are re-initialized and reused where possible.
 
 Constant.
 """
-total_rules(kb::KnuthBendix) = Int(LibSemigroups.total_rules(kb))
+total_rules(kb::KnuthBendix) = Int(LibSemigroups.total_rules(_native(kb)))
 
 """
     confluent(kb::KnuthBendix) -> Bool
@@ -398,7 +419,7 @@ Returns `true` if the current rules are confluent, `false` otherwise. This
 function does not trigger a run; call [`run!`](@ref Semigroups.run!) first to
 ensure the system has been fully processed.
 """
-confluent(kb::KnuthBendix) = LibSemigroups.confluent(kb)
+confluent(kb::KnuthBendix) = LibSemigroups.confluent(_native(kb))
 
 """
     confluent_known(kb::KnuthBendix) -> Bool
@@ -408,7 +429,7 @@ Return `true` if the confluence status of the current rules is already known.
 Reports whether [`confluent`](@ref Semigroups.confluent) would return a
 definitive answer without running further. Does not trigger a run.
 """
-confluent_known(kb::KnuthBendix) = LibSemigroups.confluent_known(kb)
+confluent_known(kb::KnuthBendix) = LibSemigroups.confluent_known(_native(kb))
 
 """
     number_of_classes(kb::KnuthBendix) -> UInt64
@@ -431,7 +452,8 @@ number of nodes in the Gilman graph.
 [`gilman_graph`](@ref Semigroups.gilman_graph),
 [`normal_forms`](@ref Semigroups.normal_forms)
 """
-number_of_classes(kb::KnuthBendix) = LibSemigroups.number_of_classes(kb)
+number_of_classes(kb::KnuthBendix) =
+    @wrap_libsemigroups_call LibSemigroups.number_of_classes(_native(kb))
 
 """
     kind(kb::KnuthBendix) -> congruence_kind
@@ -445,7 +467,7 @@ Semigroups.congruence_kind) for details.
 
 Constant.
 """
-kind(kb::KnuthBendix) = LibSemigroups.kind(kb)
+kind(kb::KnuthBendix) = LibSemigroups.kind(_native(kb))
 
 """
     number_of_generating_pairs(kb::KnuthBendix) -> Int
@@ -460,7 +482,7 @@ Semigroups.generating_pairs) divided by 2.
 Constant.
 """
 number_of_generating_pairs(kb::KnuthBendix) =
-    Int(LibSemigroups.number_of_generating_pairs(kb))
+    Int(LibSemigroups.number_of_generating_pairs(_native(kb)))
 
 """
     generating_pairs(kb::KnuthBendix) -> Vector{Tuple{Vector{Int}, Vector{Int}}}
@@ -468,8 +490,7 @@ number_of_generating_pairs(kb::KnuthBendix) =
 Return the generating pairs of `kb` as 1-based word pairs.
 
 These are the pairs added via [`add_generating_pair!`](@ref
-Semigroups.add_generating_pair!). Words are returned as 1-based `Vector{Int}`
-letter indices.
+Semigroups.add_generating_pair!). Words are returned in the algorithm's representation: positive integer vectors or ASCII strings.
 
 !!! warning
     If `kb` represents a one-sided congruence ([`kind`](@ref Semigroups.kind)
@@ -478,12 +499,8 @@ letter indices.
     letter may appear in the returned words.
 """
 function generating_pairs(kb::KnuthBendix)
-    flat = LibSemigroups.generating_pairs(kb)
-    result = Tuple{Vector{Int},Vector{Int}}[]
-    for i = 1:2:length(flat)
-        push!(result, (_word_from_cpp(flat[i]), _word_from_cpp(flat[i+1])))
-    end
-    return result
+    flat = LibSemigroups.generating_pairs(_native(kb))
+    return _word_pairs_from_cpp(_word_type(kb), flat)
 end
 
 """
@@ -499,7 +516,7 @@ Return a copy of the presentation used by `kb`.
     required by the algorithm. This extra letter also appears in the output of
     [`active_rules`](@ref Semigroups.active_rules).
 """
-presentation(kb::KnuthBendix) = LibSemigroups.presentation(kb)
+presentation(kb::KnuthBendix) = _wrap_presentation(LibSemigroups.presentation(_native(kb)))
 
 # ============================================================================
 # Rules access
@@ -510,15 +527,11 @@ presentation(kb::KnuthBendix) = LibSemigroups.presentation(kb)
 
 Return all active rules as a vector of `(lhs, rhs)` tuples.
 
-Words are returned as 1-based `Vector{Int}` letter indices.
+Words are returned in the algorithm's representation: positive integer vectors or ASCII strings.
 """
 function active_rules(kb::KnuthBendix)
-    flat = @wrap_libsemigroups_call LibSemigroups.kb_active_rules(kb)
-    result = Tuple{Vector{Int},Vector{Int}}[]
-    for i = 1:2:length(flat)
-        push!(result, (_word_from_cpp(flat[i]), _word_from_cpp(flat[i+1])))
-    end
-    return result
+    flat = @wrap_libsemigroups_call LibSemigroups.kb_active_rules(_native(kb))
+    return _word_pairs_from_cpp(_word_type(kb), flat)
 end
 
 # ============================================================================
@@ -528,8 +541,8 @@ end
 """
     gilman_graph(kb::KnuthBendix) -> WordGraph
 
-Return the Gilman [`WordGraph`](@ref Semigroups.WordGraph) of the rewriting
-system.
+Return an owning snapshot of the Gilman [`WordGraph`](@ref Semigroups.WordGraph)
+of the rewriting system. The copy remains valid after `kb` is changed or released.
 
 The Gilman WordGraph is a directed graph where paths from the initial node
 (corresponding to the empty word) spell out the shortlex normal forms of the
@@ -545,7 +558,8 @@ acyclic.
 [`number_of_classes`](@ref Semigroups.number_of_classes),
 [`normal_forms`](@ref Semigroups.normal_forms)
 """
-@cxxdereference gilman_graph(kb::KnuthBendix) = LibSemigroups.gilman_graph(kb)
+gilman_graph(kb::KnuthBendix) =
+    @wrap_libsemigroups_call LibSemigroups.gilman_graph(_native(kb))
 
 """
     gilman_graph_node_labels(kb::KnuthBendix) -> Vector{Vector{Int}}
@@ -560,9 +574,9 @@ indices.
 
 [`gilman_graph`](@ref Semigroups.gilman_graph)
 """
-@cxxdereference function gilman_graph_node_labels(kb::KnuthBendix)
-    labels = LibSemigroups.gilman_graph_node_labels(kb)
-    return [_word_from_cpp(w) for w in labels]
+function gilman_graph_node_labels(kb::KnuthBendix)
+    labels = LibSemigroups.gilman_graph_node_labels(_native(kb))
+    return _words_from_cpp(_word_type(kb), labels)
 end
 
 # ============================================================================
@@ -583,7 +597,7 @@ Base.length(kb::KnuthBendix) = number_of_classes(kb)
 Print a human-readable representation of `kb`.
 """
 function Base.show(io::IO, kb::KnuthBendix)
-    print(io, LibSemigroups.to_human_readable_repr(kb))
+    print(io, LibSemigroups.to_human_readable_repr(_native(kb)))
 end
 
 """
@@ -591,9 +605,9 @@ end
 
 Create an independent copy of `kb`.
 """
-Base.copy(kb::KnuthBendix) = LibSemigroups.KnuthBendixRewriteTrie(kb)
+Base.copy(kb::KnuthBendix) = KnuthBendix(kb)
 
-Base.deepcopy_internal(kb::KnuthBendix, ::IdDict) = LibSemigroups.KnuthBendixRewriteTrie(kb)
+Base.deepcopy_internal(kb::KnuthBendix, ::IdDict) = KnuthBendix(kb)
 
 # ============================================================================
 # Free functions
@@ -618,7 +632,7 @@ Semigroups.overlap_policy)) before those of length ``n + 1``. Returns `kb`.
 [`overlap_policy!`](@ref Semigroups.overlap_policy!)
 """
 function by_overlap_length!(kb::KnuthBendix)
-    @wrap_libsemigroups_call LibSemigroups.kb_by_overlap_length!(kb)
+    @wrap_libsemigroups_call LibSemigroups.kb_by_overlap_length!(_native(kb))
     return kb
 end
 
@@ -631,7 +645,8 @@ Returns `true` if for each pair of rules ``(A, B)`` and ``(C, D)`` in `kb`,
 the word ``C`` is neither a subword of ``A`` nor of ``B``. Returns `false`
 otherwise.
 """
-is_reduced(kb::KnuthBendix) = @wrap_libsemigroups_call LibSemigroups.kb_is_reduced(kb)
+is_reduced(kb::KnuthBendix) =
+    @wrap_libsemigroups_call LibSemigroups.kb_is_reduced(_native(kb))
 
 """
     redundant_rule(p::Presentation, timeout::TimePeriod) -> Union{Int, Nothing}
@@ -657,8 +672,10 @@ no redundant rule is identified within the timeout.
 """
 function redundant_rule(p::Presentation, timeout::TimePeriod)
     ns = convert(Nanosecond, timeout)
-    idx =
-        @wrap_libsemigroups_call LibSemigroups.kb_redundant_rule(p, Int64(Dates.value(ns)))
+    idx = @wrap_libsemigroups_call LibSemigroups.kb_redundant_rule(
+        _native(p),
+        Int64(Dates.value(ns)),
+    )
     n_flat = 2 * number_of_rules(p)
     # If idx == n_flat, no redundant rule was found
     if idx >= n_flat
@@ -666,4 +683,11 @@ function redundant_rule(p::Presentation, timeout::TimePeriod)
     end
     # Convert from 0-based flat index to 1-based rule-pair index
     return div(Int(idx), 2) + 1
+end
+
+function _check_generating_pair_capacity(kb::KnuthBendix{String})
+    if kind(kb) == onesided && length(alphabet(presentation(kb))) >= 128
+        throw(ArgumentError("one-sided Knuth–Bendix needs an unused ASCII generator"))
+    end
+    return nothing
 end

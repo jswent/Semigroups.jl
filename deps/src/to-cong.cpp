@@ -18,6 +18,7 @@
 
 // CRITICAL: libsemigroups_julia.hpp MUST be included first (fmt consteval fix)
 #include "libsemigroups_julia.hpp"
+#include "presentation-conversion.hpp"
 
 #include <cstdint>
 
@@ -28,31 +29,50 @@
 #include <libsemigroups/word-graph.hpp>  // for WordGraph
 
 namespace libsemigroups_julia {
+  template <typename Word>
+  void align_graph_congruence_alphabet(libsemigroups::Congruence<Word>& c,
+                                       libsemigroups::congruence_kind   kind) {
+    auto const& p = c.presentation();
+    check_presentation_alphabet(p);
+    auto tc = c.template get<libsemigroups::ToddCoxeter<Word>>();
+    if (tc->presentation().alphabet() != p.alphabet()
+        || tc->presentation().contains_empty_word()
+               != p.contains_empty_word()) {
+      // v3.6.1 generates the outer string alphabet consecutively from 'a',
+      // but its graph runner uses human-readable order (a-zA-Z...). Align
+      // the fresh runner with the outer presentation before it sees words.
+      // Copy first: ToddCoxeter rejects reinitialization from its own graph.
+      libsemigroups::WordGraph<uint32_t> graph(tc->current_word_graph());
+      tc->init(kind, p, graph);
+    }
+  }
 
-  void define_to_cong(jl::Module& m) {
-    // FroidurePin + Cayley-graph form. Throws LibsemigroupsException if `wg`
-    // is neither `fpb.left_cayley_graph()` nor `fpb.right_cayley_graph()`
-    // (see to-cong.tpp).
-    m.method("to_congruence_from_fpb",
+  template <typename Word>
+  void define_to_cong_type(jl::Module& m,
+                           char const* fp_name,
+                           char const* graph_name) {
+    using C = libsemigroups::Congruence<Word>;
+    m.method(fp_name,
              [](libsemigroups::congruence_kind            knd,
                 libsemigroups::FroidurePinBase&           fpb,
-                libsemigroups::WordGraph<uint32_t> const& wg)
-                 -> libsemigroups::Congruence<libsemigroups::word_type> {
-               return libsemigroups::to<
-                   libsemigroups::Congruence<libsemigroups::word_type>>(
-                   knd, fpb, wg);
+                libsemigroups::WordGraph<uint32_t> const& wg) -> C {
+               C result = libsemigroups::to<C>(knd, fpb, wg);
+               align_graph_congruence_alphabet(result, knd);
+               return result;
              });
-
-    // WordGraph-only form. Performs no validation of `wg`; the resulting
-    // Congruence wraps a ToddCoxeter built directly from the graph.
-    m.method("to_congruence_from_wg",
+    m.method(graph_name,
              [](libsemigroups::congruence_kind            knd,
-                libsemigroups::WordGraph<uint32_t> const& wg)
-                 -> libsemigroups::Congruence<libsemigroups::word_type> {
-               return libsemigroups::to<
-                   libsemigroups::Congruence<libsemigroups::word_type>>(knd,
-                                                                        wg);
+                libsemigroups::WordGraph<uint32_t> const& wg) -> C {
+               C result = libsemigroups::to<C>(knd, wg);
+               align_graph_congruence_alphabet(result, knd);
+               return result;
              });
   }
 
+  void define_to_cong(jl::Module& m) {
+    define_to_cong_type<libsemigroups::word_type>(
+        m, "to_congruence_from_fpb", "to_congruence_from_wg");
+    define_to_cong_type<std::string>(
+        m, "to_congruence_from_fpb_string", "to_congruence_from_wg_string");
+  }
 }  // namespace libsemigroups_julia

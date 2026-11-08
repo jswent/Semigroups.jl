@@ -33,7 +33,9 @@ These common tasks include:
 * checking the status of the algorithm: has it [`started`](@ref)? [`finished`](@ref)? been killed by another thread ([`dead`](@ref))? has it timed out ([`timed_out`](@ref))? has it [`stopped`](@ref) for any reason?
 * permit the function [`run!`](@ref) to be killed from another thread ([`kill!`](@ref)).
 """
-const Runner = LibSemigroups.Runner
+abstract type Runner end
+
+_native(r::Runner) = r.cxx_obj
 
 """
     RunnerState
@@ -71,7 +73,7 @@ Run until [`finished`](@ref).
 
 Run the main algorithm implemented by a derived class of [`Runner`](@ref).
 """
-run!(r::Runner) = LibSemigroups.run!(r)
+run!(r::Runner) = (@wrap_libsemigroups_call LibSemigroups.run!(_native(r)); r)
 
 """
     run_for!(r::Runner, t::TimePeriod)
@@ -95,12 +97,12 @@ function run_for!(r::Runner, t::TimePeriod)
     ns = convert(Nanosecond, t)
     Dates.value(ns) >= 0 ||
         throw(ArgumentError("run_for! requires a non-negative duration, got $t"))
-    LibSemigroups.run_for!(r, Int64(Dates.value(ns)))
+    @wrap_libsemigroups_call LibSemigroups.run_for!(_native(r), Int64(Dates.value(ns)))
 end
 
 function run_until!(f::Function, r::Runner)
     sf = @safe_cfunction($f, Cuchar, ())
-    GC.@preserve sf LibSemigroups.run_until!(r, sf)
+    GC.@preserve sf @wrap_libsemigroups_call LibSemigroups.run_until!(_native(r), sf)
 end
 
 """
@@ -139,7 +141,7 @@ had been newly default constructed.
 # See also
 [`Runner`](@ref)
 """
-init!(r::Runner) = LibSemigroups.init!(r)
+init!(r::Runner) = (@wrap_libsemigroups_call LibSemigroups.init!(_native(r)); r)
 
 # ============================================================================
 # State queries
@@ -154,7 +156,7 @@ Returns `true` if [`run!`](@ref) has been run to completion; and `false` if not.
 
 # See also
 """
-finished(r::Runner) = LibSemigroups.finished(r)
+finished(r::Runner) = LibSemigroups.finished(_native(r))
 
 """
     Base.success(r::Runner) -> Bool
@@ -167,7 +169,7 @@ successful. The default implementation is to just call [`finished`](@ref).
 This extends `Base.success` (which checks process exit status) to work with
 libsemigroups [`Runner`](@ref) types. 
 """
-Base.success(r::Runner) = LibSemigroups.success(r)
+Base.success(r::Runner) = LibSemigroups.success(_native(r))
 
 """
     started(r::Runner) -> Bool
@@ -180,7 +182,7 @@ not).
 # See also
 [`finished`](@ref)
 """
-started(r::Runner) = LibSemigroups.started(r)
+started(r::Runner) = LibSemigroups.started(_native(r))
 
 """
     running(r::Runner) -> Bool
@@ -193,7 +195,7 @@ not.
 # See also
 [`finished`](@ref)
 """
-running(r::Runner) = LibSemigroups.running(r)
+running(r::Runner) = LibSemigroups.running(_native(r))
 
 """
     timed_out(r::Runner) -> Bool
@@ -203,7 +205,7 @@ Check if the amount of time passed to [`run_for!`](@ref) has elapsed.
 # See also
 [`run_for!(::Runner, ::TimePeriod)`](@ref)
 """
-timed_out(r::Runner) = LibSemigroups.timed_out(r)
+timed_out(r::Runner) = LibSemigroups.timed_out(_native(r))
 
 """
     stopped(r::Runner) -> Bool
@@ -214,7 +216,7 @@ This function can be used to check whether or not [`run!`](@ref) has been
 stopped for whatever reason. In other words, it checks if
 [`timed_out`](@ref), [`finished`](@ref), or [`dead`](@ref).
 """
-stopped(r::Runner) = LibSemigroups.stopped(r)
+stopped(r::Runner) = LibSemigroups.stopped(_native(r))
 
 """
     dead(r::Runner) -> Bool
@@ -227,7 +229,7 @@ because it has been killed by another thread.
 # See also
 [`kill!`](@ref)
 """
-dead(r::Runner) = LibSemigroups.dead(r)
+dead(r::Runner) = LibSemigroups.dead(_native(r))
 
 """
     stopped_by_predicate(r::Runner) -> Bool
@@ -240,7 +242,7 @@ return value is returned. If `r` is not running, then `true` is
 returned if and only if the last time `r` was running it was
 stopped by a call to the nullary predicate passed to [`run_until!`](@ref).
 """
-stopped_by_predicate(r::Runner) = LibSemigroups.stopped_by_predicate(r)
+stopped_by_predicate(r::Runner) = LibSemigroups.stopped_by_predicate(_native(r))
 
 """
     running_for(r::Runner) -> Bool
@@ -252,7 +254,7 @@ If the Runner is currently running because its member function
 [`run_for!`](@ref) has been invoked, then this function returns `true`.
 Otherwise, `false` is returned.
 """
-running_for(r::Runner) = LibSemigroups.running_for(r)
+running_for(r::Runner) = LibSemigroups.running_for(_native(r))
 
 """
     running_for_how_long(r::Runner) -> Nanosecond
@@ -260,7 +262,7 @@ running_for(r::Runner) = LibSemigroups.running_for(r)
 Return the duration of the most recent [`run_for!`](@ref) call as a
 `Dates.Nanosecond` period.
 """
-running_for_how_long(r::Runner) = Nanosecond(LibSemigroups.running_for_how_long(r))
+running_for_how_long(r::Runner) = Nanosecond(LibSemigroups.running_for_how_long(_native(r)))
 
 """
     running_until(r::Runner) -> Bool
@@ -272,7 +274,7 @@ If the Runner is currently running because its member function
 [`run_until!`](@ref) has been invoked, then this function returns `true`.
 Otherwise, `false` is returned.
 """
-running_until(r::Runner) = LibSemigroups.running_until(r)
+running_until(r::Runner) = LibSemigroups.running_until(_native(r))
 
 """
     current_state(r::Runner) -> RunnerState
@@ -281,7 +283,7 @@ Return the current state.
 
 Returns the current state of the [`Runner`](@ref) as given by [`state`](@ref).
 """
-current_state(r::Runner) = LibSemigroups.current_state(r)
+current_state(r::Runner) = LibSemigroups.current_state(_native(r))
 
 # ============================================================================
 # Control
@@ -299,7 +301,7 @@ state, but will return `true` from [`dead`](@ref) .
 # See also
 [`finished`](@ref)
 """
-kill!(r::Runner) = LibSemigroups.kill!(r)
+kill!(r::Runner) = LibSemigroups.kill!(_native(r))
 
 # ============================================================================
 # Reporting
@@ -313,11 +315,11 @@ Report why [`run!`](@ref) stopped.
 Reports whether [`run!`](@ref) was stopped because it is [`finished`](@ref),
 [`timed_out`](@ref), or [`dead`](@ref).
 """
-report_why_we_stopped(r::Runner) = LibSemigroups.report_why_we_stopped(r)
+report_why_we_stopped(r::Runner) = LibSemigroups.report_why_we_stopped(_native(r))
 
 """
     string_why_we_stopped(r::Runner) -> String
 
 Return a human-readable string describing why the algorithm stopped.
 """
-string_why_we_stopped(r::Runner) = LibSemigroups.string_why_we_stopped(r)
+string_why_we_stopped(r::Runner) = LibSemigroups.string_why_we_stopped(_native(r))

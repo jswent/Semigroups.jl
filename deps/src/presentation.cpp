@@ -17,6 +17,7 @@
 //
 
 #include "libsemigroups_julia.hpp"
+#include "word-transport.hpp"
 
 #include <libsemigroups/presentation.hpp>
 #include <libsemigroups/types.hpp>
@@ -25,349 +26,363 @@
 
 #include <cstddef>
 #include <iterator>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace jlcxx {
-  template <>
-  struct IsMirroredType<libsemigroups::Presentation<libsemigroups::word_type>>
+  template <typename Word>
+  struct IsMirroredType<libsemigroups::Presentation<Word>> : std::false_type {};
+
+  template <typename Word>
+  struct IsMirroredType<libsemigroups::InversePresentation<Word>>
       : std::false_type {};
 
-  template <>
-  struct IsMirroredType<
-      libsemigroups::InversePresentation<libsemigroups::word_type>>
-      : std::false_type {};
-
-  template <>
-  struct SuperType<
-      libsemigroups::InversePresentation<libsemigroups::word_type>> {
-    using type = libsemigroups::Presentation<libsemigroups::word_type>;
+  template <typename Word>
+  struct SuperType<libsemigroups::InversePresentation<Word>> {
+    using type = libsemigroups::Presentation<Word>;
   };
 }  // namespace jlcxx
 
 namespace libsemigroups_julia {
 
-  void define_presentation(jl::Module& m) {
+  template <typename Word>
+  void
+  check_ascii_generator_capacity(libsemigroups::Presentation<Word> const& p) {
+    if constexpr (std::is_same_v<Word, std::string>) {
+      if (p.alphabet().size() >= 128) {
+        throw std::invalid_argument("the ASCII alphabet has no unused letters");
+      }
+    }
+  }
+
+  template <typename Word>
+  void define_presentation_type(jl::Module& m,
+                                char const* name,
+                                char const* inverse_name) {
     using libsemigroups::Presentation;
-    using libsemigroups::word_type;
+    using Letter = NativeLetter<Word>;
 
-    auto type = m.add_type<Presentation<word_type>>("Presentation");
-    type.constructor<>();
-    type.constructor<Presentation<word_type> const&>();  // copy ctor
+    auto type = m.add_type<Presentation<Word>>(name);
+    type.template constructor<>();
+    type.template constructor<Presentation<Word> const&>();  // copy ctor
 
-    type.method("init!", [](Presentation<word_type>& self) { self.init(); });
+    type.method("init!", [](Presentation<Word>& self) { self.init(); });
 
-    type.method("alphabet",
-                [](Presentation<word_type> const& self) -> word_type {
-                  return self.alphabet();
-                });
-
-    type.method(
-        "set_alphabet_size!",
-        [](Presentation<word_type>& self, size_t n) { self.alphabet(n); });
-
-    type.method("set_alphabet!",
-                [](Presentation<word_type>& self, jlcxx::ArrayRef<size_t> a) {
-                  self.alphabet(word_type(a.begin(), a.end()));
-                });
-
-    type.method("alphabet_from_rules!", [](Presentation<word_type>& self) {
-      self.alphabet_from_rules();
+    type.method("alphabet", [](Presentation<Word> const& self) -> Word {
+      return self.alphabet();
     });
 
+    type.method("set_alphabet_size!", [](Presentation<Word>& self, size_t n) {
+      if constexpr (std::is_same_v<Word, std::string>) {
+        if (n > 31) {
+          throw std::invalid_argument(
+              "the native string alphabet size constructor supports at most 31 "
+              "ASCII letters; provide an explicit alphabet instead");
+        }
+      }
+      self.alphabet(n);
+    });
+
+    type.method("set_alphabet!",
+                [](Presentation<Word>& self, WordInput<Word> a) {
+                  self.alphabet(native_word<Word>(a));
+                });
+
+    type.method("alphabet_from_rules!",
+                [](Presentation<Word>& self) { self.alphabet_from_rules(); });
+
     type.method("letter",
-                [](Presentation<word_type> const& self, size_t i) -> size_t {
-                  return self.letter(i);
+                [](Presentation<Word> const& self, size_t i) -> Letter {
+                  return bridge_letter<Word>(self.letter(i));
                 });
 
     type.method("index_of",
-                [](Presentation<word_type> const& self, size_t x) -> size_t {
-                  return self.index(x);
+                [](Presentation<Word> const& self, Letter x) -> size_t {
+                  return self.index(native_letter<Word>(x));
                 });
 
     type.method("in_alphabet",
-                [](Presentation<word_type> const& self, size_t x) -> bool {
-                  return self.in_alphabet(x);
+                [](Presentation<Word> const& self, Letter x) -> bool {
+                  return self.in_alphabet(native_letter<Word>(x));
                 });
 
     type.method("contains_empty_word",
-                [](Presentation<word_type> const& self) -> bool {
+                [](Presentation<Word> const& self) -> bool {
                   return self.contains_empty_word();
                 });
-    type.method("set_contains_empty_word!",
-                [](Presentation<word_type>& self, bool v) {
-                  self.contains_empty_word(v);
-                });
+    type.method(
+        "set_contains_empty_word!",
+        [](Presentation<Word>& self, bool v) { self.contains_empty_word(v); });
 
     type.method("add_generator_no_arg!",
-                [](Presentation<word_type>& self) -> size_t {
-                  return self.add_generator();
+                [](Presentation<Word>& self) -> Letter {
+                  check_ascii_generator_capacity(self);
+                  return bridge_letter<Word>(self.add_generator());
                 });
-    type.method("add_generator!", [](Presentation<word_type>& self, size_t x) {
-      self.add_generator(x);
+    type.method("add_generator!", [](Presentation<Word>& self, Letter x) {
+      self.add_generator(native_letter<Word>(x));
     });
-    type.method("remove_generator!",
-                [](Presentation<word_type>& self, size_t x) {
-                  self.remove_generator(x);
-                });
+    type.method("remove_generator!", [](Presentation<Word>& self, Letter x) {
+      self.remove_generator(native_letter<Word>(x));
+    });
 
-    m.method("add_rule_no_checks!",
-             [](Presentation<word_type>& p,
-                jlcxx::ArrayRef<size_t>  lhs,
-                jlcxx::ArrayRef<size_t>  rhs) {
-               word_type l(lhs.begin(), lhs.end());
-               word_type r(rhs.begin(), rhs.end());
-               libsemigroups::presentation::add_rule_no_checks(p, l, r);
-             });
+    m.method(
+        "add_rule_no_checks!",
+        [](Presentation<Word>& p, WordInput<Word> lhs, WordInput<Word> rhs) {
+          Word l = native_word<Word>(lhs);
+          Word r = native_word<Word>(rhs);
+          libsemigroups::presentation::add_rule_no_checks(p, l, r);
+        });
 
-    m.method("add_rule!",
-             [](Presentation<word_type>& p,
-                jlcxx::ArrayRef<size_t>  lhs,
-                jlcxx::ArrayRef<size_t>  rhs) {
-               word_type l(lhs.begin(), lhs.end());
-               word_type r(rhs.begin(), rhs.end());
-               libsemigroups::presentation::add_rule(p, l, r);
-             });
+    m.method(
+        "add_rule!",
+        [](Presentation<Word>& p, WordInput<Word> lhs, WordInput<Word> rhs) {
+          Word l = native_word<Word>(lhs);
+          Word r = native_word<Word>(rhs);
+          libsemigroups::presentation::add_rule(p, l, r);
+        });
 
     type.method("number_of_rules",
-                [](Presentation<word_type> const& self) -> size_t {
+                [](Presentation<Word> const& self) -> size_t {
                   return self.rules.size() / 2;
                 });
 
     type.method("rule_lhs",
-                [](Presentation<word_type> const& self, size_t i) -> word_type {
+                [](Presentation<Word> const& self, size_t i) -> Word {
                   return self.rules.at(2 * i);
                 });
 
     type.method("rule_rhs",
-                [](Presentation<word_type> const& self, size_t i) -> word_type {
+                [](Presentation<Word> const& self, size_t i) -> Word {
                   return self.rules.at(2 * i + 1);
                 });
 
     type.method("clear_rules!",
-                [](Presentation<word_type>& self) { self.rules.clear(); });
+                [](Presentation<Word>& self) { self.rules.clear(); });
 
     type.method("throw_if_alphabet_has_duplicates",
-                [](Presentation<word_type> const& self) {
+                [](Presentation<Word> const& self) {
                   self.throw_if_alphabet_has_duplicates();
                 });
     type.method("throw_if_letter_not_in_alphabet",
-                [](Presentation<word_type> const& self, size_t x) {
-                  self.throw_if_letter_not_in_alphabet(x);
+                [](Presentation<Word> const& self, Letter x) {
+                  self.throw_if_letter_not_in_alphabet(native_letter<Word>(x));
                 });
-    type.method("throw_if_bad_rules", [](Presentation<word_type> const& self) {
+    type.method("throw_if_bad_rules", [](Presentation<Word> const& self) {
       self.throw_if_bad_rules();
     });
     type.method("throw_if_bad_alphabet_or_rules",
-                [](Presentation<word_type> const& self) {
+                [](Presentation<Word> const& self) {
                   self.throw_if_bad_alphabet_or_rules();
                 });
 
-    m.method("length_of", [](Presentation<word_type> const& p) -> size_t {
+    m.method("length_of", [](Presentation<Word> const& p) -> size_t {
       return libsemigroups::presentation::length(p);
     });
-    m.method("longest_rule_length",
-             [](Presentation<word_type> const& p) -> size_t {
-               return libsemigroups::presentation::longest_rule_length(p);
-             });
-    m.method("shortest_rule_length",
-             [](Presentation<word_type> const& p) -> size_t {
-               return libsemigroups::presentation::shortest_rule_length(p);
-             });
-    m.method("is_normalized", [](Presentation<word_type> const& p) -> bool {
+    m.method("longest_rule_length", [](Presentation<Word> const& p) -> size_t {
+      return libsemigroups::presentation::longest_rule_length(p);
+    });
+    m.method("shortest_rule_length", [](Presentation<Word> const& p) -> size_t {
+      return libsemigroups::presentation::shortest_rule_length(p);
+    });
+    m.method("is_normalized", [](Presentation<Word> const& p) -> bool {
       return libsemigroups::presentation::is_normalized(p);
     });
-    m.method("are_rules_sorted", [](Presentation<word_type> const& p) -> bool {
+    m.method("are_rules_sorted", [](Presentation<Word> const& p) -> bool {
       return libsemigroups::presentation::are_rules_sorted(p);
     });
     m.method("contains_rule",
-             [](Presentation<word_type>& p,
-                jlcxx::ArrayRef<size_t>  lhs,
-                jlcxx::ArrayRef<size_t>  rhs) -> bool {
-               word_type l(lhs.begin(), lhs.end());
-               word_type r(rhs.begin(), rhs.end());
+             [](Presentation<Word>& p,
+                WordInput<Word>     lhs,
+                WordInput<Word>     rhs) -> bool {
+               Word l = native_word<Word>(lhs);
+               Word r = native_word<Word>(rhs);
                return libsemigroups::presentation::contains_rule(p, l, r);
              });
-    m.method("throw_if_odd_number_of_rules",
-             [](Presentation<word_type> const& p) {
-               // Fully qualified: the iterator-pair overload is also in scope.
-               libsemigroups::presentation::throw_if_odd_number_of_rules(p);
-             });
+    m.method("throw_if_odd_number_of_rules", [](Presentation<Word> const& p) {
+      // Fully qualified: the iterator-pair overload is also in scope.
+      libsemigroups::presentation::throw_if_odd_number_of_rules(p);
+    });
 
-    m.method("normalize_alphabet!", [](Presentation<word_type>& p) {
+    m.method("normalize_alphabet!", [](Presentation<Word>& p) {
       libsemigroups::presentation::normalize_alphabet(p);
     });
-    m.method("change_alphabet!",
-             [](Presentation<word_type>& p, jlcxx::ArrayRef<size_t> a) {
-               libsemigroups::presentation::change_alphabet(
-                   p, word_type(a.begin(), a.end()));
-             });
-    m.method("reverse_rules!", [](Presentation<word_type>& p) {
+    m.method("change_alphabet!", [](Presentation<Word>& p, WordInput<Word> a) {
+      libsemigroups::presentation::change_alphabet(p, native_word<Word>(a));
+    });
+    m.method("reverse_rules!", [](Presentation<Word>& p) {
       libsemigroups::presentation::reverse(p);
     });
-    m.method("sort_rules!", [](Presentation<word_type>& p) {
+    m.method("sort_rules!", [](Presentation<Word>& p) {
       libsemigroups::presentation::sort_rules(p);
     });
-    m.method("sort_each_rule!", [](Presentation<word_type>& p) -> bool {
+    m.method("sort_each_rule!", [](Presentation<Word>& p) -> bool {
       return libsemigroups::presentation::sort_each_rule(p);
     });
 
-    m.method("add_identity_rules!", [](Presentation<word_type>& p, size_t e) {
-      libsemigroups::presentation::add_identity_rules(p, e);
+    m.method("add_identity_rules!", [](Presentation<Word>& p, Letter e) {
+      libsemigroups::presentation::add_identity_rules(p,
+                                                      native_letter<Word>(e));
     });
-    m.method("add_zero_rules!", [](Presentation<word_type>& p, size_t z) {
-      libsemigroups::presentation::add_zero_rules(p, z);
+    m.method("add_zero_rules!", [](Presentation<Word>& p, Letter z) {
+      libsemigroups::presentation::add_zero_rules(p, native_letter<Word>(z));
     });
-    m.method("remove_duplicate_rules!", [](Presentation<word_type>& p) {
+    m.method("remove_duplicate_rules!", [](Presentation<Word>& p) {
       libsemigroups::presentation::remove_duplicate_rules(p);
     });
-    m.method("remove_trivial_rules!", [](Presentation<word_type>& p) {
+    m.method("remove_trivial_rules!", [](Presentation<Word>& p) {
       libsemigroups::presentation::remove_trivial_rules(p);
     });
 
     m.method("add_rules!",
-             [](Presentation<word_type>& p, Presentation<word_type> const& q) {
+             [](Presentation<Word>& p, Presentation<Word> const& q) {
                libsemigroups::presentation::add_rules(p, q);
              });
 
     m.method("add_inverse_rules!",
-             [](Presentation<word_type>& p, jlcxx::ArrayRef<size_t> inverses) {
-               word_type v(inverses.begin(), inverses.end());
+             [](Presentation<Word>& p, WordInput<Word> inverses) {
+               Word v = native_word<Word>(inverses);
                libsemigroups::presentation::add_inverse_rules(p, v);
              });
 
     m.method("add_inverse_rules_with_identity!",
-             [](Presentation<word_type>& p,
-                jlcxx::ArrayRef<size_t>  inverses,
-                size_t                   e) {
-               word_type v(inverses.begin(), inverses.end());
-               libsemigroups::presentation::add_inverse_rules(p, v, e);
+             [](Presentation<Word>& p, WordInput<Word> inverses, Letter e) {
+               Word v = native_word<Word>(inverses);
+               libsemigroups::presentation::add_inverse_rules(
+                   p, v, native_letter<Word>(e));
              });
 
     m.method("replace_subword!",
-             [](Presentation<word_type>& p,
-                jlcxx::ArrayRef<size_t>  existing,
-                jlcxx::ArrayRef<size_t>  replacement) {
-               word_type e(existing.begin(), existing.end());
-               word_type r(replacement.begin(), replacement.end());
+             [](Presentation<Word>& p,
+                WordInput<Word>     existing,
+                WordInput<Word>     replacement) {
+               Word e = native_word<Word>(existing);
+               Word r = native_word<Word>(replacement);
                libsemigroups::presentation::replace_subword(p, e, r);
              });
 
     m.method("replace_word!",
-             [](Presentation<word_type>& p,
-                jlcxx::ArrayRef<size_t>  existing,
-                jlcxx::ArrayRef<size_t>  replacement) {
-               word_type e(existing.begin(), existing.end());
-               word_type r(replacement.begin(), replacement.end());
+             [](Presentation<Word>& p,
+                WordInput<Word>     existing,
+                WordInput<Word>     replacement) {
+               Word e = native_word<Word>(existing);
+               Word r = native_word<Word>(replacement);
                libsemigroups::presentation::replace_word(p, e, r);
              });
 
-    m.method(
-        "replace_word_with_new_generator!",
-        [](Presentation<word_type>& p, jlcxx::ArrayRef<size_t> w) -> size_t {
-          word_type v(w.begin(), w.end());
-          return libsemigroups::presentation::replace_word_with_new_generator(
-              p, v);
-        });
-
-    m.method("first_unused_letter",
-             [](Presentation<word_type> const& p) -> size_t {
-               return libsemigroups::presentation::first_unused_letter(p);
+    m.method("replace_word_with_new_generator!",
+             [](Presentation<Word>& p, WordInput<Word> w) -> Letter {
+               check_ascii_generator_capacity(p);
+               Word v = native_word<Word>(w);
+               return bridge_letter<Word>(
+                   libsemigroups::presentation::replace_word_with_new_generator(
+                       p, v));
              });
 
+    m.method("first_unused_letter", [](Presentation<Word> const& p) -> Letter {
+      check_ascii_generator_capacity(p);
+      return bridge_letter<Word>(
+          libsemigroups::presentation::first_unused_letter(p));
+    });
+
     m.method("index_rule",
-             [](Presentation<word_type> const& p,
-                jlcxx::ArrayRef<size_t>        lhs,
-                jlcxx::ArrayRef<size_t>        rhs) -> size_t {
-               word_type l(lhs.begin(), lhs.end());
-               word_type r(rhs.begin(), rhs.end());
+             [](Presentation<Word> const& p,
+                WordInput<Word>           lhs,
+                WordInput<Word>           rhs) -> size_t {
+               Word l = native_word<Word>(lhs);
+               Word r = native_word<Word>(rhs);
                return libsemigroups::presentation::index_rule(p, l, r);
              });
 
     m.method("is_rule",
-             [](Presentation<word_type> const& p,
-                jlcxx::ArrayRef<size_t>        lhs,
-                jlcxx::ArrayRef<size_t>        rhs) -> bool {
-               word_type l(lhs.begin(), lhs.end());
-               word_type r(rhs.begin(), rhs.end());
+             [](Presentation<Word> const& p,
+                WordInput<Word>           lhs,
+                WordInput<Word>           rhs) -> bool {
+               Word l = native_word<Word>(lhs);
+               Word r = native_word<Word>(rhs);
                return libsemigroups::presentation::is_rule(p, l, r);
              });
 
-    m.method("longest_rule_index",
-             [](Presentation<word_type> const& p) -> size_t {
-               auto it = libsemigroups::presentation::longest_rule(p);
-               return static_cast<size_t>(std::distance(p.rules.cbegin(), it));
-             });
+    m.method("longest_rule_index", [](Presentation<Word> const& p) -> size_t {
+      auto it = libsemigroups::presentation::longest_rule(p);
+      return static_cast<size_t>(std::distance(p.rules.cbegin(), it));
+    });
 
-    m.method("shortest_rule_index",
-             [](Presentation<word_type> const& p) -> size_t {
-               auto it = libsemigroups::presentation::shortest_rule(p);
-               return static_cast<size_t>(std::distance(p.rules.cbegin(), it));
-             });
+    m.method("shortest_rule_index", [](Presentation<Word> const& p) -> size_t {
+      auto it = libsemigroups::presentation::shortest_rule(p);
+      return static_cast<size_t>(std::distance(p.rules.cbegin(), it));
+    });
 
-    m.method(
-        "throw_if_bad_inverses",
-        [](Presentation<word_type> const& p, jlcxx::ArrayRef<size_t> inverses) {
-          word_type v(inverses.begin(), inverses.end());
-          libsemigroups::presentation::throw_if_bad_inverses(p, v);
-        });
+    m.method("throw_if_bad_inverses",
+             [](Presentation<Word> const& p, WordInput<Word> inverses) {
+               Word v = native_word<Word>(inverses);
+               libsemigroups::presentation::throw_if_bad_inverses(p, v);
+             });
 
     m.method("to_gap_string",
-             [](Presentation<word_type> const& p,
-                std::string const&             var_name) -> std::string {
+             [](Presentation<Word> const& p,
+                std::string const&        var_name) -> std::string {
                return libsemigroups::presentation::to_gap_string(p, var_name);
              });
 
     m.method("rules_vector",
-             [](Presentation<word_type> const& p) -> std::vector<word_type> {
-               return std::vector<word_type>(p.rules.cbegin(), p.rules.cend());
+             [](Presentation<Word> const& p) -> std::vector<Word> {
+               return std::vector<Word>(p.rules.cbegin(), p.rules.cend());
              });
 
-    type.method(
-        "is_equal",
-        [](Presentation<word_type> const& a,
-           Presentation<word_type> const& b) -> bool { return a == b; });
+    type.method("is_equal",
+                [](Presentation<Word> const& a,
+                   Presentation<Word> const& b) -> bool { return a == b; });
     type.method("to_human_readable_repr",
-                [](Presentation<word_type> const& p) -> std::string {
+                [](Presentation<Word> const& p) -> std::string {
                   return libsemigroups::to_human_readable_repr(p);
                 });
 
     // -----------------------------------------------------------------------
-    // InversePresentation<word_type>
+    // InversePresentation<Word>
     // -----------------------------------------------------------------------
     using libsemigroups::InversePresentation;
 
-    auto itype = m.add_type<InversePresentation<word_type>>(
-        "InversePresentation",
-        jlcxx::julia_base_type<Presentation<word_type>>());
+    auto itype = m.add_type<InversePresentation<Word>>(
+        inverse_name, jlcxx::julia_base_type<Presentation<Word>>());
 
-    itype.constructor<Presentation<word_type> const&>();
-    itype.constructor<InversePresentation<word_type> const&>();  // copy ctor
+    itype.template constructor<Presentation<Word> const&>();
+    itype
+        .template constructor<InversePresentation<Word> const&>();  // copy ctor
 
-    itype.method(
-        "set_inverses!",
-        [](InversePresentation<word_type>& self, jlcxx::ArrayRef<size_t> w) {
-          self.inverses(word_type(w.begin(), w.end()));
-        });
-    itype.method("inverses",
-                 [](InversePresentation<word_type> const& self) -> word_type {
-                   return self.inverses();
+    itype.method("set_inverses!",
+                 [](InversePresentation<Word>& self, WordInput<Word> w) {
+                   self.inverses(native_word<Word>(w));
                  });
+    itype.method("inverses", [](InversePresentation<Word> const& self) -> Word {
+      return self.inverses();
+    });
     itype.method("inverse_of",
-                 [](InversePresentation<word_type> const& self,
-                    size_t x) -> size_t { return self.inverse(x); });
+                 [](InversePresentation<Word> const& self, Letter x) -> Letter {
+                   return bridge_letter<Word>(
+                       self.inverse(native_letter<Word>(x)));
+                 });
     itype.method("throw_if_bad_alphabet_rules_or_inverses",
-                 [](InversePresentation<word_type> const& self) {
+                 [](InversePresentation<Word> const& self) {
                    self.throw_if_bad_alphabet_rules_or_inverses();
                  });
     itype.method(
         "is_equal_inv",
-        [](InversePresentation<word_type> const& a,
-           InversePresentation<word_type> const& b) -> bool { return a == b; });
+        [](InversePresentation<Word> const& a,
+           InversePresentation<Word> const& b) -> bool { return a == b; });
     itype.method("to_human_readable_repr",
-                 [](InversePresentation<word_type> const& self) -> std::string {
+                 [](InversePresentation<Word> const& self) -> std::string {
                    return libsemigroups::to_human_readable_repr(self);
                  });
+  }
+
+  void define_presentation(jl::Module& m) {
+    define_presentation_type<libsemigroups::word_type>(
+        m, "Presentation", "InversePresentation");
+    define_presentation_type<std::string>(
+        m, "PresentationString", "InversePresentationString");
   }
 
 }  // namespace libsemigroups_julia

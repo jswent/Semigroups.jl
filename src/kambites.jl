@@ -73,11 +73,21 @@ helpers ([`reduce`](@ref Semigroups.reduce),
 - [`LibsemigroupsError`](@ref Semigroups.LibsemigroupsError) if `kind`
   is not [`twosided`](@ref Semigroups.twosided).
 
-!!! warning "v1 limitation"
-    v1 of Semigroups.jl binds `Kambites{word_type}` only. String-alphabet
-    presentations are deferred to later versions.
+Words use the representation of the input presentation: integer vectors or ASCII strings.
 """
-const Kambites = LibSemigroups.KambitesWord
+struct Kambites{W,B} <: CongruenceCommon{W}
+    cxx_obj::B
+end
+
+_native_algorithm(::Type{Kambites}, ::Type{Vector{Int}}) = LibSemigroups.KambitesWord
+_native_algorithm(::Type{Kambites}, ::Type{String}) = LibSemigroups.KambitesString
+_wrap_kambites(x::LibSemigroups.KambitesWord) = Kambites{Vector{Int},typeof(x)}(x)
+_wrap_kambites(x::LibSemigroups.KambitesString) = Kambites{String,typeof(x)}(x)
+Kambites{W}() where {W} = _wrap_kambites(_native_algorithm(Kambites, W)())
+Kambites() = Kambites{Vector{Int}}()
+Kambites(other::Kambites{W}) where {W} =
+    _wrap_kambites(@wrap_libsemigroups_call _native_algorithm(Kambites, W)(_native(other)))
+
 
 # ============================================================================
 # Initialization
@@ -109,8 +119,8 @@ CxxWrap-bound constructor would surface them as `Base.ErrorException`).
 - [`LibsemigroupsError`](@ref Semigroups.LibsemigroupsError) if `kind`
   is not [`twosided`](@ref Semigroups.twosided).
 """
-function Kambites(kind::congruence_kind, p::Presentation)
-    k = LibSemigroups.KambitesWord()
+function Kambites(kind::congruence_kind, p::Presentation{W}) where {W}
+    k = Kambites{W}()
     init!(k, kind, p)
     return k
 end
@@ -144,12 +154,13 @@ Returns `k` for chaining.
   only).
 """
 function init!(k::Kambites)
-    @wrap_libsemigroups_call LibSemigroups.init!(k)
+    @wrap_libsemigroups_call LibSemigroups.init!(_native(k))
     return k
 end
 
 function init!(k::Kambites, kind::congruence_kind, p::Presentation)
-    @wrap_libsemigroups_call LibSemigroups.init!(k, kind, p)
+    _require_same_word_type(k, p)
+    @wrap_libsemigroups_call LibSemigroups.init!(_native(k), kind, _native(p))
     return k
 end
 
@@ -168,7 +179,7 @@ presentation is returned. The Julia binding returns by value (an
 independent copy) rather than by reference; mutating the returned
 object does not affect `k`.
 """
-presentation(k::Kambites) = LibSemigroups.presentation(k)
+presentation(k::Kambites) = _wrap_presentation(LibSemigroups.presentation(_native(k)))
 
 """
     generating_pairs(k::Kambites) -> Vector{Tuple{Vector{Int}, Vector{Int}}}
@@ -182,12 +193,8 @@ indices. The length of the returned vector equals
 [`number_of_generating_pairs`](@ref Semigroups.number_of_generating_pairs).
 """
 function generating_pairs(k::Kambites)
-    flat = LibSemigroups.generating_pairs(k)
-    result = Tuple{Vector{Int},Vector{Int}}[]
-    for i = 1:2:length(flat)
-        push!(result, (_word_from_cpp(flat[i]), _word_from_cpp(flat[i+1])))
-    end
-    return result
+    flat = LibSemigroups.generating_pairs(_native(k))
+    return _word_pairs_from_cpp(_word_type(k), flat)
 end
 
 """
@@ -201,7 +208,7 @@ that constraint.
 
 Complexity: constant.
 """
-kind(k::Kambites) = LibSemigroups.kind(k)
+kind(k::Kambites) = LibSemigroups.kind(_native(k))
 
 """
     number_of_generating_pairs(k::Kambites) -> Int
@@ -211,7 +218,8 @@ of [`generating_pairs`](@ref Semigroups.generating_pairs)`(k)`.
 
 Complexity: constant.
 """
-number_of_generating_pairs(k::Kambites) = Int(LibSemigroups.number_of_generating_pairs(k))
+number_of_generating_pairs(k::Kambites) =
+    Int(LibSemigroups.number_of_generating_pairs(_native(k)))
 
 """
     number_of_classes(k::Kambites) -> UInt64
@@ -233,7 +241,8 @@ case.
   not possible to compute the number of classes because the small
   overlap class is too small (`small_overlap_class(k) < 4`).
 """
-number_of_classes(k::Kambites) = @wrap_libsemigroups_call LibSemigroups.number_of_classes(k)
+number_of_classes(k::Kambites) =
+    @wrap_libsemigroups_call LibSemigroups.number_of_classes(_native(k))
 
 # ============================================================================
 # small_overlap_class (const-overload split)
@@ -280,7 +289,7 @@ words occurring in the relations of the semigroup.
 
 [`current_small_overlap_class`](@ref Semigroups.current_small_overlap_class)
 """
-small_overlap_class(k::Kambites) = LibSemigroups.small_overlap_class(k)
+small_overlap_class(k::Kambites) = LibSemigroups.small_overlap_class(_native(k))
 
 """
     current_small_overlap_class(k::Kambites) -> Union{UInt64, UndefinedType}
@@ -301,7 +310,7 @@ more details on what the small overlap class is.
 [`small_overlap_class`](@ref Semigroups.small_overlap_class)
 """
 function current_small_overlap_class(k::Kambites)
-    val = LibSemigroups.current_small_overlap_class(k)
+    val = LibSemigroups.current_small_overlap_class(_native(k))
     return val == convert(UInt, UNDEFINED) ? UNDEFINED : val
 end
 
@@ -330,9 +339,15 @@ construct `k`. Letters in `w` are 1-based indices.
 - [`LibsemigroupsError`](@ref Semigroups.LibsemigroupsError) if any
   letter in `w` is not in the alphabet.
 """
-function throw_if_letter_not_in_alphabet(k::Kambites, w::AbstractVector{<:Integer})
-    cpp_w = _word_to_cpp(w)
-    @wrap_libsemigroups_call LibSemigroups.throw_if_letter_not_in_alphabet(k, cpp_w)
+function throw_if_letter_not_in_alphabet(
+    k::Kambites,
+    w::Union{AbstractVector{<:Integer},AbstractString},
+)
+    cpp_w = _word_to_cpp(_word_type(k), w)
+    @wrap_libsemigroups_call LibSemigroups.throw_if_letter_not_in_alphabet(
+        _native(k),
+        cpp_w,
+    )
     return nothing
 end
 
@@ -351,7 +366,7 @@ not at least 4 (and computes it if necessary).
   `small_overlap_class(k) < 4`.
 """
 function throw_if_not_C4(k::Kambites)
-    @wrap_libsemigroups_call LibSemigroups.throw_if_not_C4(k)
+    @wrap_libsemigroups_call LibSemigroups.throw_if_not_C4(_native(k))
     return nothing
 end
 
@@ -366,7 +381,7 @@ Print a human-readable representation of `k`. Delegates to
 libsemigroups' `to_human_readable_repr`.
 """
 function Base.show(io::IO, k::Kambites)
-    print(io, LibSemigroups.to_human_readable_repr(k))
+    print(io, LibSemigroups.to_human_readable_repr(_native(k)))
 end
 
 """
@@ -374,9 +389,9 @@ end
 
 Create an independent copy of `k` via the C++ copy constructor.
 """
-Base.copy(k::Kambites) = LibSemigroups.KambitesWord(k)
+Base.copy(k::Kambites) = Kambites(k)
 
-Base.deepcopy_internal(k::Kambites, ::IdDict) = LibSemigroups.KambitesWord(k)
+Base.deepcopy_internal(k::Kambites, ::IdDict) = Kambites(k)
 
 # ============================================================================
 # non_trivial_classes override (throws)
@@ -427,8 +442,9 @@ materializes only the first `n` words and is safe to call.
 """
 function normal_forms(k::Kambites, n::Integer)
     cpp_n = UInt(n)
-    nf = @wrap_libsemigroups_call LibSemigroups.kambites_normal_forms_take(k, cpp_n)
-    return [_word_from_cpp(w) for w in nf]
+    nf =
+        @wrap_libsemigroups_call LibSemigroups.kambites_normal_forms_take(_native(k), cpp_n)
+    return _words_from_cpp(_word_type(k), nf)
 end
 
 """

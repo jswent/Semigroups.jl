@@ -46,57 +46,53 @@
 #include <vector>
 
 namespace jlcxx {
-  template <>
-  struct IsMirroredType<libsemigroups::Kambites<libsemigroups::word_type>>
-      : std::false_type {};
+  template <typename Word>
+  struct IsMirroredType<libsemigroups::Kambites<Word>> : std::false_type {};
 
-  template <>
-  struct SuperType<libsemigroups::Kambites<libsemigroups::word_type>> {
+  template <typename Word>
+  struct SuperType<libsemigroups::Kambites<Word>> {
     using type = libsemigroups::detail::CongruenceCommon;
   };
 }  // namespace jlcxx
 
 namespace libsemigroups_julia {
 
-  void define_kambites(jl::Module& m) {
+  template <typename Word>
+  void define_kambites_type(jl::Module& m, std::string const& name) {
     using libsemigroups::congruence_kind;
     using libsemigroups::Presentation;
-    using libsemigroups::word_type;
 
     using CongruenceCommon = libsemigroups::detail::CongruenceCommon;
-    using K                = libsemigroups::Kambites<word_type>;
+    using K                = libsemigroups::Kambites<Word>;
 
     // Type registration
-    auto type = m.add_type<K>("KambitesWord",
-                              jlcxx::julia_base_type<CongruenceCommon>());
+    auto type = m.add_type<K>(name, jlcxx::julia_base_type<CongruenceCommon>());
 
     // Constructors. Direct registration (no defensive lambda); CxxWrap
     // converts C++ exceptions through the std::function path for direct
     // constructor bindings.
-    type.constructor<>();
-    type.constructor<congruence_kind, Presentation<word_type> const&>();
-    type.constructor<K const&>();  // copy ctor
+    type.template constructor<>();
+    type.template constructor<congruence_kind, Presentation<Word> const&>();
+    type.template constructor<K const&>();  // copy ctor
 
     // init! overloads (mirror constructors)
     type.method("init!", [](K& self) -> K& { return self.init(); });
-    type.method("init!",
-                [](K&                             self,
-                   congruence_kind                knd,
-                   Presentation<word_type> const& p) -> K& {
-                  return self.init(knd, p);
-                });
+    type.method(
+        "init!",
+        [](K& self, congruence_kind knd, Presentation<Word> const& p) -> K& {
+          return self.init(knd, p);
+        });
 
     // presentation - return by copy (storage may relocate)
-    type.method("presentation", [](K const& self) -> Presentation<word_type> {
+    type.method("presentation", [](K const& self) -> Presentation<Word> {
       return self.presentation();
     });
 
     // generating_pairs - return by copy
-    type.method("generating_pairs",
-                [](K const& self) -> std::vector<word_type> {
-                  auto const& pairs = self.generating_pairs();
-                  return std::vector<word_type>(pairs.begin(), pairs.end());
-                });
+    type.method("generating_pairs", [](K const& self) -> std::vector<Word> {
+      auto const& pairs = self.generating_pairs();
+      return std::vector<Word>(pairs.begin(), pairs.end());
+    });
 
     // kind / number_of_generating_pairs (inherited; exposed for parity with TC)
     type.method("kind",
@@ -130,11 +126,10 @@ namespace libsemigroups_julia {
     // TODO: ukkonen() is intentionally NOT bound: its return type is the
     // Ukkonen suffix-tree class, which is currently not bound
 
-    // throw_if_letter_not_in_alphabet -- accept ArrayRef<size_t>, build a
-    // word_type inside the lambda (mirrors todd-coxeter.cpp:256-260).
+    // Validate against the stored presentation alphabet.
     type.method("throw_if_letter_not_in_alphabet",
-                [](K const& self, jlcxx::ArrayRef<size_t> w) {
-                  word_type ww(w.begin(), w.end());
+                [](K const& self, WordInput<Word> w) {
+                  Word ww = native_word<Word>(w);
                   self.throw_if_letter_not_in_alphabet(ww.begin(), ww.end());
                 });
 
@@ -153,7 +148,7 @@ namespace libsemigroups_julia {
     // than CxxWrap's opaque method-not-found error). The user-facing
     // `normal_forms(::Kambites)` override in `src/kambites.jl` already
     // throws ArgumentError for direct calls; this guards the indirect path.
-    m.method("cong_common_normal_forms", [](K&) -> std::vector<word_type> {
+    m.method("cong_common_normal_forms", [](K&) -> std::vector<Word> {
       throw libsemigroups::LibsemigroupsException(
           __FILE__,
           __LINE__,
@@ -167,8 +162,8 @@ namespace libsemigroups_julia {
     // normal_forms template but caps iteration at n elements so callers can
     // safely take a finite prefix of the infinite normal-form range.
     m.method("kambites_normal_forms_take",
-             [](K& self, size_t n) -> std::vector<word_type> {
-               std::vector<word_type> result;
+             [](K& self, size_t n) -> std::vector<Word> {
+               std::vector<Word> result;
                result.reserve(n);
                auto range
                    = libsemigroups::congruence_common::normal_forms(self);
@@ -178,6 +173,11 @@ namespace libsemigroups_julia {
                }
                return result;
              });
+  }
+
+  void define_kambites(jl::Module& m) {
+    define_kambites_type<libsemigroups::word_type>(m, "KambitesWord");
+    define_kambites_type<std::string>(m, "KambitesString");
   }
 
 }  // namespace libsemigroups_julia

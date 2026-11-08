@@ -16,7 +16,11 @@ are available.
 using Dates: TimePeriod
 
 @testset "Runner type aliases" begin
-    @test Runner === Semigroups.LibSemigroups.Runner
+    @test isabstracttype(Runner)
+    @test CongruenceCommon <: Runner
+    @test KnuthBendix <: CongruenceCommon
+    @test ToddCoxeter <: CongruenceCommon
+    @test Kambites <: CongruenceCommon
     @test RunnerState === Semigroups.LibSemigroups.state
 end
 
