@@ -42,6 +42,7 @@
 
 // CRITICAL: libsemigroups_julia.hpp MUST be included first (fmt consteval fix)
 #include "libsemigroups_julia.hpp"
+#include "word-transport.hpp"
 
 #include <libsemigroups/cong-common-helpers.hpp>
 
@@ -57,62 +58,55 @@ namespace libsemigroups_julia {
     using Word = typename Thing::native_word_type;
 
     // reduce (triggers full enumeration)
-    m.method("cong_common_reduce",
-             [](Thing& self, jlcxx::ArrayRef<size_t> w) -> Word {
-               Word input(w.begin(), w.end());
-               return libsemigroups::congruence_common::reduce(self, input);
-             });
+    m.method("cong_common_reduce", [](Thing& self, WordInput<Word> w) -> Word {
+      Word input = native_word<Word>(w);
+      return libsemigroups::congruence_common::reduce(self, input);
+    });
 
     // reduce_no_run (no enumeration)
     m.method("cong_common_reduce_no_run",
-             [](Thing const& self, jlcxx::ArrayRef<size_t> w) -> Word {
-               Word input(w.begin(), w.end());
+             [](Thing const& self, WordInput<Word> w) -> Word {
+               Word input = native_word<Word>(w);
                return libsemigroups::congruence_common::reduce_no_run(self,
                                                                       input);
              });
 
     // contains (triggers full enumeration)
     m.method("cong_common_contains",
-             [](Thing&                  self,
-                jlcxx::ArrayRef<size_t> u,
-                jlcxx::ArrayRef<size_t> v) -> bool {
-               Word uw(u.begin(), u.end());
-               Word vw(v.begin(), v.end());
+             [](Thing& self, WordInput<Word> u, WordInput<Word> v) -> bool {
+               Word uw = native_word<Word>(u);
+               Word vw = native_word<Word>(v);
+               // The native free-KnuthBendix shortcut skips these checks.
+               self.throw_if_letter_not_in_alphabet(uw.begin(), uw.end());
+               self.throw_if_letter_not_in_alphabet(vw.begin(), vw.end());
                return libsemigroups::congruence_common::contains(self, uw, vw);
              });
 
     // currently_contains (no enumeration, returns tril)
     m.method("cong_common_currently_contains",
-             [](Thing const&            self,
-                jlcxx::ArrayRef<size_t> u,
-                jlcxx::ArrayRef<size_t> v) -> libsemigroups::tril {
-               Word uw(u.begin(), u.end());
-               Word vw(v.begin(), v.end());
+             [](Thing const&    self,
+                WordInput<Word> u,
+                WordInput<Word> v) -> libsemigroups::tril {
+               Word uw = native_word<Word>(u);
+               Word vw = native_word<Word>(v);
                return libsemigroups::congruence_common::currently_contains(
                    self, uw, vw);
              });
 
     // add_generating_pair!
-    m.method(
-        "cong_common_add_generating_pair!",
-        [](Thing& self, jlcxx::ArrayRef<size_t> u, jlcxx::ArrayRef<size_t> v) {
-          Word uw(u.begin(), u.end());
-          Word vw(v.begin(), v.end());
-          libsemigroups::congruence_common::add_generating_pair(self, uw, vw);
-        });
+    m.method("cong_common_add_generating_pair!",
+             [](Thing& self, WordInput<Word> u, WordInput<Word> v) {
+               Word uw = native_word<Word>(u);
+               Word vw = native_word<Word>(v);
+               libsemigroups::congruence_common::add_generating_pair(
+                   self, uw, vw);
+             });
 
     m.method("cong_common_partition",
-             [](Thing& self, jlcxx::ArrayRef<jl_value_t*> words)
+             [](Thing& self, std::vector<Word> const& words)
                  -> std::vector<std::vector<Word>> {
-               std::vector<Word> input;
-               input.reserve(words.size());
-               for (jl_value_t* word_value : words) {
-                 auto word = jlcxx::ArrayRef<size_t>(
-                     reinterpret_cast<jl_array_t*>(word_value));
-                 input.emplace_back(word.begin(), word.end());
-               }
                return libsemigroups::congruence_common::partition(
-                   self, input.begin(), input.end());
+                   self, words.begin(), words.end());
              });
   }
 

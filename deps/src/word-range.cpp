@@ -17,6 +17,7 @@
 //
 
 #include "libsemigroups_julia.hpp"
+#include "word-transport.hpp"
 
 #include <libsemigroups/order.hpp>
 #include <libsemigroups/types.hpp>
@@ -25,84 +26,97 @@
 #include <jlcxx/array.hpp>
 
 #include <cstdint>
+#include <string>
+#include <type_traits>
 #include <vector>
 
 namespace jlcxx {
   template <>
   struct IsMirroredType<libsemigroups::WordRange> : std::false_type {};
+
+  template <>
+  struct IsMirroredType<libsemigroups::StringRange> : std::false_type {};
 }  // namespace jlcxx
 
 namespace libsemigroups_julia {
 
-  void define_word_range(jl::Module& m) {
+  template <typename Range, typename Word>
+  void define_word_range_type(jl::Module& m, char const* name) {
     using libsemigroups::Order;
-    using libsemigroups::word_type;
-    using libsemigroups::WordRange;
 
-    auto type = m.add_type<WordRange>("WordRange");
+    auto type = m.add_type<Range>(name);
 
-    type.constructor<>();
+    type.template constructor<>();
+    type.template constructor<Range const&>();
 
     //////////////////////////////////////////////////////////////////////////
     // Iteration protocol
     //////////////////////////////////////////////////////////////////////////
 
-    type.method("get",
-                [](WordRange const& self) -> word_type { return self.get(); });
-    type.method("next!", [](WordRange& self) { self.next(); });
+    type.method("get", [](Range const& self) -> Word { return self.get(); });
+    type.method("next!", [](Range& self) { self.next(); });
     type.method("at_end",
-                [](WordRange const& self) -> bool { return self.at_end(); });
-    type.method("size_hint", [](WordRange const& self) -> uint64_t {
-      return self.size_hint();
-    });
+                [](Range const& self) -> bool { return self.at_end(); });
+    type.method("size_hint",
+                [](Range const& self) -> uint64_t { return self.size_hint(); });
     type.method("count",
-                [](WordRange const& self) -> uint64_t { return self.count(); });
-    type.method("valid",
-                [](WordRange const& self) -> bool { return self.valid(); });
-    type.method("init!",
-                [](WordRange& self) -> WordRange& { return self.init(); });
+                [](Range const& self) -> uint64_t { return self.count(); });
+    if constexpr (std::is_same_v<Range, libsemigroups::WordRange>) {
+      type.method("valid",
+                  [](Range const& self) -> bool { return self.valid(); });
+    }
+    type.method("init!", [](Range& self) -> Range& { return self.init(); });
 
     //////////////////////////////////////////////////////////////////////////
     // Getter/setter pairs — split names to avoid CxxWrap overload issues
     //////////////////////////////////////////////////////////////////////////
 
-    type.method("alphabet_size", [](WordRange const& self) -> size_t {
-      return self.alphabet_size();
-    });
-    type.method("set_alphabet_size!",
-                [](WordRange& self, size_t n) { self.alphabet_size(n); });
+    if constexpr (std::is_same_v<Range, libsemigroups::WordRange>) {
+      type.method("alphabet_size", [](Range const& self) -> size_t {
+        return self.alphabet_size();
+      });
+      type.method("set_alphabet_size!",
+                  [](Range& self, size_t n) { self.alphabet_size(n); });
+    } else {
+      type.method("alphabet", [](Range const& self) -> std::string {
+        return self.alphabet();
+      });
+      type.method("set_alphabet!",
+                  [](Range& self, std::string const& alphabet) {
+                    self.alphabet(alphabet);
+                  });
+    }
 
-    type.method("first", [](WordRange const& self) -> word_type {
-      return self.first();
-    });
-    type.method("set_first!", [](WordRange& self, jlcxx::ArrayRef<size_t> w) {
-      self.first(word_type(w.begin(), w.end()));
-    });
-
-    type.method("last",
-                [](WordRange const& self) -> word_type { return self.last(); });
-    type.method("set_last!", [](WordRange& self, jlcxx::ArrayRef<size_t> w) {
-      self.last(word_type(w.begin(), w.end()));
+    type.method("first",
+                [](Range const& self) -> Word { return self.first(); });
+    type.method("set_first!", [](Range& self, WordInput<Word> w) {
+      self.first(native_word<Word>(w));
     });
 
-    type.method("order", [](WordRange const& self) { return self.order(); });
-    type.method("set_order!", [](WordRange& self, Order o) { self.order(o); });
-
-    type.method("upper_bound", [](WordRange const& self) -> size_t {
-      return self.upper_bound();
+    type.method("last", [](Range const& self) -> Word { return self.last(); });
+    type.method("set_last!", [](Range& self, WordInput<Word> w) {
+      self.last(native_word<Word>(w));
     });
+
+    type.method("order", [](Range const& self) { return self.order(); });
+    type.method("set_order!", [](Range& self, Order o) { self.order(o); });
+
+    type.method("upper_bound",
+                [](Range const& self) -> size_t { return self.upper_bound(); });
     type.method("set_upper_bound!",
-                [](WordRange& self, size_t n) { self.upper_bound(n); });
+                [](Range& self, size_t n) { self.upper_bound(n); });
 
     // min / max are setter-only upstream (they set first/last to word_type(val,
     // 0)).
-    type.method("set_min!", [](WordRange& self, size_t n) { self.min(n); });
-    type.method("set_max!", [](WordRange& self, size_t n) { self.max(n); });
+    type.method("set_min!", [](Range& self, size_t n) { self.min(n); });
+    type.method("set_max!", [](Range& self, size_t n) { self.max(n); });
+  }
 
-    //////////////////////////////////////////////////////////////////////////
-    // Free functions (module-level)
-    //////////////////////////////////////////////////////////////////////////
-
+  void define_word_range(jl::Module& m) {
+    using libsemigroups::word_type;
+    define_word_range_type<libsemigroups::WordRange, word_type>(m, "WordRange");
+    define_word_range_type<libsemigroups::StringRange, std::string>(
+        m, "StringRange");
     m.method("number_of_words",
              [](size_t n, size_t min, size_t max) -> uint64_t {
                return libsemigroups::number_of_words(n, min, max);

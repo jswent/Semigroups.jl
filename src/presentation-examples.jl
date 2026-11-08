@@ -1,6 +1,7 @@
 # Copyright (c) 2026, James W. Swent
 #
 # Distributed under the terms of the GPL license version 3.
+# OpenAI Codex assisted with public presentation result wrapping.
 
 """
 presentation-examples.jl - Julia wrappers for `libsemigroups::presentation::examples`
@@ -18,9 +19,8 @@ letter indices. These wrappers mirror the default
     `InexactError` in Julia before `libsemigroups` can throw
     `LibsemigroupsError`.
 
-!!! warning "v1 limitation"
-    v1 of Semigroups.jl binds `Presentation<word_type>` only. Alphabets and
-    rules use `Vector{Int}` with 1-based letter indices.
+These constructors use numeric words. Use an explicit presentation conversion
+to assign a string alphabet to the resulting presentation.
 """
 
 """
@@ -40,7 +40,8 @@ symmetric group of degree `n`.
 """
 function symmetric_group(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_symmetric_group(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_symmetric_group(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -60,7 +61,8 @@ group of degree `n`.
 """
 function alternating_group(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_alternating_group(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_alternating_group(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -80,7 +82,8 @@ This function returns a monoid presentation defining the braid group with
 """
 function braid_group(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_braid_group(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_braid_group(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -101,7 +104,8 @@ the symmetric group of degree `n`, but does not.
 """
 function not_symmetric_group(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_not_symmetric_group(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_not_symmetric_group(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -121,7 +125,8 @@ transformation monoid of degree `n`.
 """
 function full_transformation_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_full_transformation_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_full_transformation_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -141,7 +146,8 @@ partial transformation monoid of degree `n`.
 """
 function partial_transformation_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_partial_transformation_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_partial_transformation_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -161,7 +167,8 @@ symmetric inverse monoid of degree `n`.
 """
 function symmetric_inverse_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_symmetric_inverse_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_symmetric_inverse_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -181,7 +188,8 @@ cyclic inverse monoid of degree `n`.
 """
 function cyclic_inverse_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_cyclic_inverse_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_cyclic_inverse_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -201,7 +209,8 @@ transformations of degree `n`.
 """
 function order_preserving_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_order_preserving_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_order_preserving_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -222,7 +231,11 @@ cyclic inverse monoid of degree `n`.
 """
 function order_preserving_cyclic_inverse_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_order_preserving_cyclic_inverse_monoid(m)
+    native =
+        @wrap_libsemigroups_call LibSemigroups.example_order_preserving_cyclic_inverse_monoid(
+            m,
+        )
+    return _wrap_presentation(native)
 end
 
 """
@@ -243,7 +256,8 @@ transformation monoid of degree `n`.
 """
 function orientation_preserving_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_orientation_preserving_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_orientation_preserving_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -264,9 +278,11 @@ orientation-reversing transformation monoid of degree `n`.
 """
 function orientation_preserving_reversing_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_orientation_preserving_reversing_monoid(
-        m,
-    )
+    native =
+        @wrap_libsemigroups_call LibSemigroups.example_orientation_preserving_reversing_monoid(
+            m,
+        )
+    return _wrap_presentation(native)
 end
 
 """
@@ -286,7 +302,8 @@ partition monoid of degree `n`.
 """
 function partition_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_partition_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_partition_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -306,7 +323,8 @@ partial Brauer monoid of degree `n`.
 """
 function partial_brauer_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_partial_brauer_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_partial_brauer_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -326,7 +344,8 @@ Brauer monoid of degree `n`.
 """
 function brauer_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_brauer_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_brauer_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -346,7 +365,8 @@ Brauer monoid of degree `n`.
 """
 function singular_brauer_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_singular_brauer_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_singular_brauer_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -366,7 +386,8 @@ monoid with `n - 1` generators.
 """
 function temperley_lieb_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_temperley_lieb_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_temperley_lieb_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -386,7 +407,8 @@ degree `n`.
 """
 function motzkin_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_motzkin_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_motzkin_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -406,7 +428,11 @@ monoid of partial isometries of an `n`-cycle graph.
 """
 function partial_isometries_cycle_graph_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_partial_isometries_cycle_graph_monoid(m)
+    native =
+        @wrap_libsemigroups_call LibSemigroups.example_partial_isometries_cycle_graph_monoid(
+            m,
+        )
+    return _wrap_presentation(native)
 end
 
 """
@@ -426,7 +452,9 @@ uniform block bijection monoid of degree `n`.
 """
 function uniform_block_bijection_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_uniform_block_bijection_monoid(m)
+    native =
+        @wrap_libsemigroups_call LibSemigroups.example_uniform_block_bijection_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -446,7 +474,8 @@ dual symmetric inverse monoid of degree `n`.
 """
 function dual_symmetric_inverse_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_dual_symmetric_inverse_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_dual_symmetric_inverse_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -466,7 +495,8 @@ with `l` generators.
 """
 function stellar_monoid(l::Integer)
     ll = UInt(l)
-    @wrap_libsemigroups_call LibSemigroups.example_stellar_monoid(ll)
+    native = @wrap_libsemigroups_call LibSemigroups.example_stellar_monoid(ll)
+    return _wrap_presentation(native)
 end
 
 """
@@ -486,7 +516,8 @@ This function returns the default libsemigroups presentation of the
 """
 function zero_rook_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_zero_rook_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_zero_rook_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -510,7 +541,8 @@ monoid of degree `n`, where each arc carries at most `d - 1` beads.
 function abacus_jones_monoid(n::Integer, d::Integer)
     nn = UInt(n)
     dd = UInt(d)
-    @wrap_libsemigroups_call LibSemigroups.example_abacus_jones_monoid(nn, dd)
+    native = @wrap_libsemigroups_call LibSemigroups.example_abacus_jones_monoid(nn, dd)
+    return _wrap_presentation(native)
 end
 
 # ---- batch C: plactic / misc ----
@@ -532,7 +564,8 @@ with `n` generators.
 """
 function plactic_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_plactic_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_plactic_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -552,7 +585,8 @@ with `n` generators.
 """
 function chinese_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_chinese_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_chinese_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -572,7 +606,8 @@ generators. It is a quotient monoid of the plactic monoid.
 """
 function hypo_plactic_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_hypo_plactic_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_hypo_plactic_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -592,7 +627,8 @@ with `n` generators.
 """
 function stylic_monoid(n::Integer)
     m = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_stylic_monoid(m)
+    native = @wrap_libsemigroups_call LibSemigroups.example_stylic_monoid(m)
+    return _wrap_presentation(native)
 end
 
 """
@@ -613,7 +649,8 @@ presentation to define the claimed group.
 """
 function special_linear_group_2(q::Integer)
     qq = UInt(q)
-    @wrap_libsemigroups_call LibSemigroups.example_special_linear_group_2(qq)
+    native = @wrap_libsemigroups_call LibSemigroups.example_special_linear_group_2(qq)
+    return _wrap_presentation(native)
 end
 
 """
@@ -636,7 +673,8 @@ semigroup `F(r, n)`.
 function fibonacci_semigroup(r::Integer, n::Integer)
     rr = UInt(r)
     nn = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_fibonacci_semigroup(rr, nn)
+    native = @wrap_libsemigroups_call LibSemigroups.example_fibonacci_semigroup(rr, nn)
+    return _wrap_presentation(native)
 end
 
 """
@@ -659,7 +697,8 @@ semigroup presentation.
 function monogenic_semigroup(m::Integer, r::Integer)
     mm = UInt(m)
     rr = UInt(r)
-    @wrap_libsemigroups_call LibSemigroups.example_monogenic_semigroup(mm, rr)
+    native = @wrap_libsemigroups_call LibSemigroups.example_monogenic_semigroup(mm, rr)
+    return _wrap_presentation(native)
 end
 
 """
@@ -682,7 +721,8 @@ rectangular band.
 function rectangular_band(m::Integer, n::Integer)
     mm = UInt(m)
     nn = UInt(n)
-    @wrap_libsemigroups_call LibSemigroups.example_rectangular_band(mm, nn)
+    native = @wrap_libsemigroups_call LibSemigroups.example_rectangular_band(mm, nn)
+    return _wrap_presentation(native)
 end
 
 """
@@ -710,7 +750,8 @@ congruence containing the relations ``a^{\\sigma(a)} = a``.
 """
 function sigma_plactic_monoid(sigma::AbstractVector{<:Integer})
     s = UInt[UInt(x) for x in sigma]
-    @wrap_libsemigroups_call LibSemigroups.example_sigma_plactic_monoid(s)
+    native = @wrap_libsemigroups_call LibSemigroups.example_sigma_plactic_monoid(s)
+    return _wrap_presentation(native)
 end
 
 """
@@ -733,7 +774,8 @@ rank `l` and Iwahori-Hecke deformation `q`.
 function renner_type_B_monoid(l::Integer, q::Integer)
     ll = UInt(l)
     qq = Int32(q)
-    @wrap_libsemigroups_call LibSemigroups.example_renner_type_B_monoid(ll, qq)
+    native = @wrap_libsemigroups_call LibSemigroups.example_renner_type_B_monoid(ll, qq)
+    return _wrap_presentation(native)
 end
 
 """
@@ -756,7 +798,8 @@ rank `l` and Iwahori-Hecke deformation `q`.
 function renner_type_D_monoid(l::Integer, q::Integer)
     ll = UInt(l)
     qq = Int32(q)
-    @wrap_libsemigroups_call LibSemigroups.example_renner_type_D_monoid(ll, qq)
+    native = @wrap_libsemigroups_call LibSemigroups.example_renner_type_D_monoid(ll, qq)
+    return _wrap_presentation(native)
 end
 
 """
@@ -781,7 +824,8 @@ the Renner monoid of type B with rank `l` and Iwahori-Hecke deformation
 function not_renner_type_B_monoid(l::Integer, q::Integer)
     ll = UInt(l)
     qq = Int32(q)
-    @wrap_libsemigroups_call LibSemigroups.example_not_renner_type_B_monoid(ll, qq)
+    native = @wrap_libsemigroups_call LibSemigroups.example_not_renner_type_B_monoid(ll, qq)
+    return _wrap_presentation(native)
 end
 
 """
@@ -806,5 +850,6 @@ the Renner monoid of type D with rank `l` and Iwahori-Hecke deformation
 function not_renner_type_D_monoid(l::Integer, q::Integer)
     ll = UInt(l)
     qq = Int32(q)
-    @wrap_libsemigroups_call LibSemigroups.example_not_renner_type_D_monoid(ll, qq)
+    native = @wrap_libsemigroups_call LibSemigroups.example_not_renner_type_D_monoid(ll, qq)
+    return _wrap_presentation(native)
 end

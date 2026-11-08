@@ -45,9 +45,9 @@ namespace jlcxx {
                                              libsemigroups::ShortLexCompare>>
       : std::false_type {};
 
-  template <>
+  template <typename Word>
   struct IsMirroredType<
-      libsemigroups::KnuthBendix<libsemigroups::word_type,
+      libsemigroups::KnuthBendix<Word,
                                  libsemigroups::detail::RewriteTrie,
                                  libsemigroups::ShortLexCompare>>
       : std::false_type {};
@@ -59,9 +59,9 @@ namespace jlcxx {
     using type = libsemigroups::detail::CongruenceCommon;
   };
 
-  template <>
+  template <typename Word>
   struct SuperType<
-      libsemigroups::KnuthBendix<libsemigroups::word_type,
+      libsemigroups::KnuthBendix<Word,
                                  libsemigroups::detail::RewriteTrie,
                                  libsemigroups::ShortLexCompare>> {
     using type = libsemigroups::detail::KnuthBendixImpl<
@@ -72,50 +72,32 @@ namespace jlcxx {
 
 namespace libsemigroups_julia {
 
-  void define_knuth_bendix(jl::Module& m) {
+  template <typename Word>
+  void define_knuth_bendix_type(jl::Module& m, std::string const& name) {
     using libsemigroups::congruence_kind;
     using libsemigroups::Presentation;
-    using libsemigroups::word_type;
 
-    using CongruenceCommon = libsemigroups::detail::CongruenceCommon;
-    using KBImpl           = libsemigroups::detail::KnuthBendixImpl<
+    using KBImpl = libsemigroups::detail::KnuthBendixImpl<
         libsemigroups::detail::RewriteTrie,
         libsemigroups::ShortLexCompare>;
-    using KB = libsemigroups::KnuthBendix<word_type,
+    using KB = libsemigroups::KnuthBendix<Word,
                                           libsemigroups::detail::RewriteTrie,
                                           libsemigroups::ShortLexCompare>;
 
-    ////////////////////////////////////////////////////////////////////////
-    // overlap enum
-    ////////////////////////////////////////////////////////////////////////
-
-    m.add_bits<KB::options::overlap>("overlap", jl::julia_type("CppEnum"));
-    m.set_const("overlap_ABC", KB::options::overlap::ABC);
-    m.set_const("overlap_AB_BC", KB::options::overlap::AB_BC);
-    m.set_const("overlap_MAX_AB_BC", KB::options::overlap::MAX_AB_BC);
-
-    ////////////////////////////////////////////////////////////////////////
-    // Type registration
-    ////////////////////////////////////////////////////////////////////////
-
-    m.add_type<KBImpl>("KnuthBendixImplRewriteTrie",
-                       jlcxx::julia_base_type<CongruenceCommon>());
-    auto type = m.add_type<KB>("KnuthBendixRewriteTrie",
-                               jlcxx::julia_base_type<KBImpl>());
+    auto type = m.add_type<KB>(name, jlcxx::julia_base_type<KBImpl>());
 
     ////////////////////////////////////////////////////////////////////////
     // Constructors
     ////////////////////////////////////////////////////////////////////////
 
-    type.constructor<congruence_kind, Presentation<word_type> const&>();
-    type.constructor<KB const&>();  // copy ctor
+    type.template constructor<congruence_kind, Presentation<Word> const&>();
+    type.template constructor<KB const&>();  // copy ctor
     type.method("init!", [](KB& self) -> KB& { return self.init(); });
-    type.method("init!",
-                [](KB&                            self,
-                   congruence_kind                knd,
-                   Presentation<word_type> const& p) -> KB& {
-                  return self.init(knd, p);
-                });
+    type.method(
+        "init!",
+        [](KB& self, congruence_kind knd, Presentation<Word> const& p) -> KB& {
+          return self.init(knd, p);
+        });
 
     ////////////////////////////////////////////////////////////////////////
     // Settings (getter / setter with DISTINCT names)
@@ -149,12 +131,14 @@ namespace libsemigroups_julia {
                 [](KB& self, size_t val) { self.max_rules(val); });
 
     // overlap_policy
-    type.method("overlap_policy", [](KB const& self) -> KB::options::overlap {
-      return self.overlap_policy();
-    });
-    type.method("set_overlap_policy!", [](KB& self, KB::options::overlap val) {
-      self.overlap_policy(val);
-    });
+    type.method("overlap_policy",
+                [](KB const& self) -> KBImpl::options::overlap {
+                  return self.overlap_policy();
+                });
+    type.method("set_overlap_policy!",
+                [](KB& self, KBImpl::options::overlap val) {
+                  self.overlap_policy(val);
+                });
 
     ////////////////////////////////////////////////////////////////////////
     // Query methods
@@ -184,14 +168,13 @@ namespace libsemigroups_julia {
     type.method("number_of_generating_pairs", [](KB const& self) -> size_t {
       return self.number_of_generating_pairs();
     });
-    type.method("generating_pairs",
-                [](KB const& self) -> std::vector<word_type> {
-                  auto const& pairs = self.generating_pairs();
-                  return std::vector<word_type>(pairs.begin(), pairs.end());
-                });
+    type.method("generating_pairs", [](KB const& self) -> std::vector<Word> {
+      auto const& pairs = self.generating_pairs();
+      return std::vector<Word>(pairs.begin(), pairs.end());
+    });
 
     // presentation — return by copy
-    type.method("presentation", [](KB const& self) -> Presentation<word_type> {
+    type.method("presentation", [](KB const& self) -> Presentation<Word> {
       return self.presentation();
     });
 
@@ -199,12 +182,12 @@ namespace libsemigroups_julia {
     // Rules access
     ////////////////////////////////////////////////////////////////////////
 
-    // active_rules — collect the range to a flat vector<word_type>
+    // active_rules — collect the range to a flat vector<Word>
     // (even indices = lhs, odd indices = rhs)
     // active_rules() returns an rx range — use .at_end()/.get()/.next()
-    m.method("kb_active_rules", [](KB& self) -> std::vector<word_type> {
-      std::vector<word_type> result;
-      auto                   range = self.active_rules();
+    m.method("kb_active_rules", [](KB& self) -> std::vector<Word> {
+      std::vector<Word> result;
+      auto              range = self.active_rules();
       while (!range.at_end()) {
         auto const& pair = range.get();
         result.push_back(pair.first);
@@ -218,17 +201,16 @@ namespace libsemigroups_julia {
     // Graph access
     ////////////////////////////////////////////////////////////////////////
 
-    // gilman_graph — return by const reference (large stable data)
+    // Return an owning snapshot; the algorithm may mutate or release its graph.
     type.method("gilman_graph",
-                [](KB& self) -> libsemigroups::WordGraph<uint32_t> const& {
+                [](KB& self) -> libsemigroups::WordGraph<uint32_t> {
                   return self.gilman_graph();
                 });
 
     // gilman_graph_node_labels — collect to vector of vectors by copy
-    type.method("gilman_graph_node_labels",
-                [](KB& self) -> std::vector<word_type> {
-                  return self.gilman_graph_node_labels();
-                });
+    type.method("gilman_graph_node_labels", [](KB& self) -> std::vector<Word> {
+      return self.gilman_graph_node_labels();
+    });
 
     ////////////////////////////////////////////////////////////////////////
     // Display
@@ -252,17 +234,33 @@ namespace libsemigroups_julia {
       return libsemigroups::knuth_bendix::is_reduced(self);
     });
 
-    // redundant_rule — takes Presentation<word_type> and a timeout in
+    // redundant_rule — takes Presentation<Word> and a timeout in
     // nanoseconds (int64_t), returns an index into p.rules (0-based).
     // Returns p.rules.size() if no redundant rule was found.
     m.method("kb_redundant_rule",
-             [](Presentation<word_type> const& p, int64_t ns) -> size_t {
+             [](Presentation<Word> const& p, int64_t ns) -> size_t {
                auto it = libsemigroups::knuth_bendix::redundant_rule(
                    p, std::chrono::nanoseconds(ns));
                return static_cast<size_t>(std::distance(p.rules.cbegin(), it));
              });
 
     define_cong_common_helpers<KB>(m);
+  }
+
+  void define_knuth_bendix(jl::Module& m) {
+    using KBImpl = libsemigroups::detail::KnuthBendixImpl<
+        libsemigroups::detail::RewriteTrie,
+        libsemigroups::ShortLexCompare>;
+    using CongruenceCommon = libsemigroups::detail::CongruenceCommon;
+    m.add_bits<KBImpl::options::overlap>("overlap", jl::julia_type("CppEnum"));
+    m.set_const("overlap_ABC", KBImpl::options::overlap::ABC);
+    m.set_const("overlap_AB_BC", KBImpl::options::overlap::AB_BC);
+    m.set_const("overlap_MAX_AB_BC", KBImpl::options::overlap::MAX_AB_BC);
+    m.add_type<KBImpl>("KnuthBendixImplRewriteTrie",
+                       jlcxx::julia_base_type<CongruenceCommon>());
+    define_knuth_bendix_type<libsemigroups::word_type>(
+        m, "KnuthBendixRewriteTrie");
+    define_knuth_bendix_type<std::string>(m, "KnuthBendixString");
   }
 
 }  // namespace libsemigroups_julia

@@ -203,6 +203,28 @@ end
     @test (finished(tc); started(tc); true)
 end
 
+# OpenAI Codex assisted with the ASCII graph initialization regression.
+@testset "TC - string graph initialization preserves ASCII capacity" begin
+    p = Presentation("a")
+    add_rule!(p, "aa", "a")
+    tc = ToddCoxeter(twosided, p)
+    add_generating_pair!(tc, "aaa", "a")
+    strategy!(tc, strategy_felsch)
+
+    @test_throws ArgumentError init!(tc, twosided, WordGraph(2, 129))
+    @test presentation(tc) == p
+    @test generating_pairs(tc) == [("aaa", "a")]
+    @test strategy(tc) == strategy_felsch
+
+    @test init!(tc, twosided, WordGraph(2, 128)) === tc
+    @test sort(collect(alphabet(presentation(tc)))) == Char.(0:127)
+    @test out_degree(current_word_graph(tc)) == 128
+
+    numeric = ToddCoxeter()
+    @test init!(numeric, twosided, WordGraph(2, 129)) === numeric
+    @test length(alphabet(presentation(numeric))) == 129
+end
+
 @testset "TC settings round-trip (8 pairs)" begin
     p = Presentation()
     set_alphabet!(p, 2)

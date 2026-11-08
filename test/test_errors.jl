@@ -44,6 +44,13 @@ test_errors.jl - Tests for error handling utilities
             end
         end
 
+        @test_throws ArgumentError Semigroups.Errors.@wrap_libsemigroups_call throw(
+            ArgumentError("Julia validation"),
+        )
+        @test_throws InterruptException Semigroups.Errors.@wrap_libsemigroups_call throw(
+            InterruptException(),
+        )
+
         # Prefix is stripped from the error message
         try
             Semigroups.Errors.@wrap_libsemigroups_call begin

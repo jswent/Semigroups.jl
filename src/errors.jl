@@ -99,6 +99,9 @@ macro wrap_libsemigroups_call(expr)
         try
             result = $(esc(expr))
         catch ex
+            # CxxWrap transports C++ exceptions as ErrorException. Preserve
+            # Julia validation failures and interrupts instead of relabeling them.
+            ex isa ErrorException || rethrow()
             if parentmodule(Errors).is_debug()
                 # Throw inside catch block to show both error and full C++ trace
                 throw(LibsemigroupsError(extract_message(exception_message(ex))))

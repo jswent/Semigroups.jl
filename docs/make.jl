@@ -59,6 +59,7 @@ makedocs(;
             "Word Graphs" => "data-structures/word-graph.md",
             "Paths" => "data-structures/paths.md",
             "Words" => "data-structures/word-range.md",
+            "ASCII string words" => "data-structures/string-words.md",
         ],
         "Main Algorithms" => [
             "Overview" => "main-algorithms/index.md",

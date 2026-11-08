@@ -69,6 +69,7 @@ using .Errors: LibsemigroupsError, @wrap_libsemigroups_call
 # Julia-side wrapper files
 include("constants.jl")
 include("report.jl")
+include("words.jl")
 include("runner.jl")
 include("order.jl")
 include("word-range.jl")
@@ -88,6 +89,7 @@ include("transf.jl")
 # Algorithm types (must come after element types)
 include("froidure-pin.jl")
 include("to.jl")
+include("string-words.jl")
 
 function _version_string(v::Union{Nothing,VersionNumber})
     return isnothing(v) ? "unknown" : string(v)
@@ -280,7 +282,7 @@ export lex_less, shortlex_less, recursive_path_less
 export weighted_shortlex_less, weighted_lex_less
 
 # WordRange
-export WordRange, alphabet_size, set_alphabet_size!
+export WordRange, StringRange, ToWord, ToString, alphabet_size, set_alphabet_size!
 export first_word, last_word, set_first!, set_last!
 export order, set_order!, set_upper_bound!, set_min!, set_max!
 export number_of_words, random_word

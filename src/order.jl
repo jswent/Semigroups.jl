@@ -75,10 +75,6 @@ const ORDER_RECURSIVE = LibSemigroups.order_recursive
 # shift happens.
 # ============================================================================
 
-@inline _letter_to_cpp(i::Integer) = UInt(i - 1)
-@inline _letter_from_cpp(x::Integer) = Int(x) + 1
-_word_to_cpp(v::AbstractVector{<:Integer}) = UInt[_letter_to_cpp(x) for x in v]
-_word_from_cpp(v) = Int[_letter_from_cpp(x) for x in v]
 
 # ============================================================================
 # Compare free functions

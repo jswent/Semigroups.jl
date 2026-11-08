@@ -44,99 +44,68 @@ namespace jlcxx {
   struct IsMirroredType<libsemigroups::detail::ToddCoxeterImpl>
       : std::false_type {};
 
-  template <>
-  struct IsMirroredType<libsemigroups::ToddCoxeter<libsemigroups::word_type>>
-      : std::false_type {};
+  template <typename Word>
+  struct IsMirroredType<libsemigroups::ToddCoxeter<Word>> : std::false_type {};
 
   template <>
   struct SuperType<libsemigroups::detail::ToddCoxeterImpl> {
     using type = libsemigroups::detail::CongruenceCommon;
   };
 
-  template <>
-  struct SuperType<libsemigroups::ToddCoxeter<libsemigroups::word_type>> {
+  template <typename Word>
+  struct SuperType<libsemigroups::ToddCoxeter<Word>> {
     using type = libsemigroups::detail::ToddCoxeterImpl;
   };
 }  // namespace jlcxx
 
 namespace libsemigroups_julia {
 
-  void define_todd_coxeter(jl::Module& m) {
+  // The 3.6.1 numeric normal_forms range exposes graph edge indices rather
+  // than presentation letters for a noncanonical numeric alphabet. word_of
+  // converts through the original alphabet for both representations.
+  template <typename Word>
+  std::vector<Word>
+  collect_todd_coxeter_normal_forms(libsemigroups::ToddCoxeter<Word>& self) {
+    self.run();
+    if (!self.current_word_graph().is_standardized()) {
+      self.standardize(libsemigroups::Order::shortlex);
+    }
+    std::vector<Word> result;
+    auto const        count = self.number_of_classes();
+    result.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+      Word word;
+      self.word_of(std::back_inserter(word), i);
+      result.push_back(std::move(word));
+    }
+    return result;
+  }
+
+  template <typename Word>
+  void define_todd_coxeter_type(jl::Module& m, std::string const& name) {
     using libsemigroups::congruence_kind;
     using libsemigroups::Order;
     using libsemigroups::Presentation;
-    using libsemigroups::word_type;
     using libsemigroups::WordGraph;
 
-    using CongruenceCommon = libsemigroups::detail::CongruenceCommon;
-    using TCImpl           = libsemigroups::detail::ToddCoxeterImpl;
-    using TC               = libsemigroups::ToddCoxeter<word_type>;
+    using TCImpl = libsemigroups::detail::ToddCoxeterImpl;
+    using TC     = libsemigroups::ToddCoxeter<Word>;
 
-    // strategy: TCImpl::options::strategy has 8 values; we only expose the
-    // 6 that appear on the user-facing ToddCoxeter::options::strategy.
-    m.add_bits<TCImpl::options::strategy>("strategy",
-                                          jl::julia_type("CppEnum"));
-    m.set_const("strategy_hlt", TCImpl::options::strategy::hlt);
-    m.set_const("strategy_felsch", TCImpl::options::strategy::felsch);
-    m.set_const("strategy_CR", TCImpl::options::strategy::CR);
-    m.set_const("strategy_R_over_C", TCImpl::options::strategy::R_over_C);
-    m.set_const("strategy_Cr", TCImpl::options::strategy::Cr);
-    m.set_const("strategy_Rc", TCImpl::options::strategy::Rc);
-
-    // lookahead_extent
-    m.add_bits<TCImpl::options::lookahead_extent>("lookahead_extent",
-                                                  jl::julia_type("CppEnum"));
-    m.set_const("lookahead_extent_full",
-                TCImpl::options::lookahead_extent::full);
-    m.set_const("lookahead_extent_partial",
-                TCImpl::options::lookahead_extent::partial);
-
-    // lookahead_style
-    m.add_bits<TCImpl::options::lookahead_style>("lookahead_style",
-                                                 jl::julia_type("CppEnum"));
-    m.set_const("lookahead_style_hlt", TCImpl::options::lookahead_style::hlt);
-    m.set_const("lookahead_style_felsch",
-                TCImpl::options::lookahead_style::felsch);
-
-    // def_policy
-    m.add_bits<TCImpl::options::def_policy>("def_policy",
-                                            jl::julia_type("CppEnum"));
-    m.set_const("def_policy_no_stack_if_no_space",
-                TCImpl::options::def_policy::no_stack_if_no_space);
-    m.set_const("def_policy_purge_from_top",
-                TCImpl::options::def_policy::purge_from_top);
-    m.set_const("def_policy_purge_all", TCImpl::options::def_policy::purge_all);
-    m.set_const("def_policy_discard_all_if_no_space",
-                TCImpl::options::def_policy::discard_all_if_no_space);
-    m.set_const("def_policy_unlimited", TCImpl::options::def_policy::unlimited);
-
-    // def_version (re-exported into TCImpl::options via a using-declaration
-    // from FelschGraphSettings::options)
-    m.add_bits<TCImpl::options::def_version>("def_version",
-                                             jl::julia_type("CppEnum"));
-    m.set_const("def_version_one", TCImpl::options::def_version::one);
-    m.set_const("def_version_two", TCImpl::options::def_version::two);
-
-    // Type registration
-    m.add_type<TCImpl>("ToddCoxeterImpl",
-                       jlcxx::julia_base_type<CongruenceCommon>());
-    auto type
-        = m.add_type<TC>("ToddCoxeterWord", jlcxx::julia_base_type<TCImpl>());
+    auto type = m.add_type<TC>(name, jlcxx::julia_base_type<TCImpl>());
 
     // Constructors
-    type.constructor<congruence_kind, Presentation<word_type> const&>();
-    type.constructor<congruence_kind, TC const&>();
-    type.constructor<congruence_kind, WordGraph<uint32_t> const&>();
-    type.constructor<TC const&>();  // copy ctor
+    type.template constructor<congruence_kind, Presentation<Word> const&>();
+    type.template constructor<congruence_kind, TC const&>();
+    type.template constructor<congruence_kind, WordGraph<uint32_t> const&>();
+    type.template constructor<TC const&>();  // copy ctor
 
     // init! overloads (mirror constructors)
     type.method("init!", [](TC& self) -> TC& { return self.init(); });
-    type.method("init!",
-                [](TC&                            self,
-                   congruence_kind                knd,
-                   Presentation<word_type> const& p) -> TC& {
-                  return self.init(knd, p);
-                });
+    type.method(
+        "init!",
+        [](TC& self, congruence_kind knd, Presentation<Word> const& p) -> TC& {
+          return self.init(knd, p);
+        });
     type.method("init!",
                 [](TC& self, congruence_kind knd, TC const& other) -> TC& {
                   return self.init(knd, other);
@@ -225,42 +194,42 @@ namespace libsemigroups_julia {
       return self.current_word_graph().is_standardized(ord);
     });
 
-    // current_word_graph: large stable data, return by const reference.
+    // Owning snapshots remain valid after the algorithm mutates or is released.
     type.method("current_word_graph",
-                [](TC const& self) -> WordGraph<uint32_t> const& {
+                [](TC const& self) -> WordGraph<uint32_t> {
                   return self.current_word_graph();
                 });
 
     // word_graph: triggers run; non-const this.
-    type.method("word_graph", [](TC& self) -> WordGraph<uint32_t> const& {
+    type.method("word_graph", [](TC& self) -> WordGraph<uint32_t> {
       return self.word_graph();
     });
 
     type.method("current_index_of",
-                [](TC const& self, jlcxx::ArrayRef<size_t> w) -> size_t {
-                  word_type ww(w.begin(), w.end());
+                [](TC const& self, WordInput<Word> w) -> size_t {
+                  Word ww = native_word<Word>(w);
                   return self.current_index_of(ww.begin(), ww.end());
                 });
 
-    type.method("index_of", [](TC& self, jlcxx::ArrayRef<size_t> w) -> size_t {
-      word_type ww(w.begin(), w.end());
+    type.method("index_of", [](TC& self, WordInput<Word> w) -> size_t {
+      Word ww = native_word<Word>(w);
       return self.index_of(ww.begin(), ww.end());
     });
 
-    type.method("current_word_of", [](TC const& self, size_t i) -> word_type {
-      word_type out;
+    type.method("current_word_of", [](TC const& self, size_t i) -> Word {
+      Word out;
       self.current_word_of(std::back_inserter(out), i);
       return out;
     });
 
     type.method("throw_if_letter_not_in_alphabet",
-                [](TC const& self, jlcxx::ArrayRef<size_t> w) {
-                  word_type ww(w.begin(), w.end());
+                [](TC const& self, WordInput<Word> w) {
+                  Word ww = native_word<Word>(w);
                   self.throw_if_letter_not_in_alphabet(ww.begin(), ww.end());
                 });
 
-    type.method("word_of", [](TC& self, size_t i) -> word_type {
-      word_type out;
+    type.method("word_of", [](TC& self, size_t i) -> Word {
+      Word out;
       self.word_of(std::back_inserter(out), i);
       return out;
     });
@@ -275,14 +244,13 @@ namespace libsemigroups_julia {
       return self.number_of_generating_pairs();
     });
 
-    type.method("generating_pairs",
-                [](TC const& self) -> std::vector<word_type> {
-                  auto const& pairs = self.generating_pairs();
-                  return std::vector<word_type>(pairs.begin(), pairs.end());
-                });
+    type.method("generating_pairs", [](TC const& self) -> std::vector<Word> {
+      auto const& pairs = self.generating_pairs();
+      return std::vector<Word>(pairs.begin(), pairs.end());
+    });
 
     // presentation - return by copy
-    type.method("presentation", [](TC const& self) -> Presentation<word_type> {
+    type.method("presentation", [](TC const& self) -> Presentation<Word> {
       return self.presentation();
     });
 
@@ -305,13 +273,77 @@ namespace libsemigroups_julia {
     // redundant_rule - returns a 0-based index into p.rules (lhs position),
     // or p.rules.size() if no redundant rule was found.
     m.method("tc_redundant_rule",
-             [](Presentation<word_type> const& p, int64_t ns) -> size_t {
+             [](Presentation<Word> const& p, int64_t ns) -> size_t {
                auto it = libsemigroups::todd_coxeter::redundant_rule(
                    p, std::chrono::nanoseconds(ns));
                return static_cast<size_t>(std::distance(p.rules.cbegin(), it));
              });
 
-    define_cong_common_helpers<TC>(m);
+    define_cong_common_word_helpers<TC>(m);
+    m.method("cong_common_normal_forms", [](TC& self) -> std::vector<Word> {
+      return collect_todd_coxeter_normal_forms(self);
+    });
+    m.method("cong_common_non_trivial_classes",
+             [](TC& x, TC& y) -> std::vector<std::vector<Word>> {
+               auto words = collect_todd_coxeter_normal_forms(y);
+               return libsemigroups::congruence_common::non_trivial_classes(
+                   x, words.begin(), words.end());
+             });
+  }
+
+  void define_todd_coxeter(jl::Module& m) {
+    using TCImpl           = libsemigroups::detail::ToddCoxeterImpl;
+    using CongruenceCommon = libsemigroups::detail::CongruenceCommon;
+    // strategy: TCImpl::options::strategy has 8 values; we only expose the
+    // 6 that appear on the user-facing ToddCoxeter::options::strategy.
+    m.add_bits<TCImpl::options::strategy>("strategy",
+                                          jl::julia_type("CppEnum"));
+    m.set_const("strategy_hlt", TCImpl::options::strategy::hlt);
+    m.set_const("strategy_felsch", TCImpl::options::strategy::felsch);
+    m.set_const("strategy_CR", TCImpl::options::strategy::CR);
+    m.set_const("strategy_R_over_C", TCImpl::options::strategy::R_over_C);
+    m.set_const("strategy_Cr", TCImpl::options::strategy::Cr);
+    m.set_const("strategy_Rc", TCImpl::options::strategy::Rc);
+
+    // lookahead_extent
+    m.add_bits<TCImpl::options::lookahead_extent>("lookahead_extent",
+                                                  jl::julia_type("CppEnum"));
+    m.set_const("lookahead_extent_full",
+                TCImpl::options::lookahead_extent::full);
+    m.set_const("lookahead_extent_partial",
+                TCImpl::options::lookahead_extent::partial);
+
+    // lookahead_style
+    m.add_bits<TCImpl::options::lookahead_style>("lookahead_style",
+                                                 jl::julia_type("CppEnum"));
+    m.set_const("lookahead_style_hlt", TCImpl::options::lookahead_style::hlt);
+    m.set_const("lookahead_style_felsch",
+                TCImpl::options::lookahead_style::felsch);
+
+    // def_policy
+    m.add_bits<TCImpl::options::def_policy>("def_policy",
+                                            jl::julia_type("CppEnum"));
+    m.set_const("def_policy_no_stack_if_no_space",
+                TCImpl::options::def_policy::no_stack_if_no_space);
+    m.set_const("def_policy_purge_from_top",
+                TCImpl::options::def_policy::purge_from_top);
+    m.set_const("def_policy_purge_all", TCImpl::options::def_policy::purge_all);
+    m.set_const("def_policy_discard_all_if_no_space",
+                TCImpl::options::def_policy::discard_all_if_no_space);
+    m.set_const("def_policy_unlimited", TCImpl::options::def_policy::unlimited);
+
+    // def_version (re-exported into TCImpl::options via a using-declaration
+    // from FelschGraphSettings::options)
+    m.add_bits<TCImpl::options::def_version>("def_version",
+                                             jl::julia_type("CppEnum"));
+    m.set_const("def_version_one", TCImpl::options::def_version::one);
+    m.set_const("def_version_two", TCImpl::options::def_version::two);
+
+    // Type registration
+    m.add_type<TCImpl>("ToddCoxeterImpl",
+                       jlcxx::julia_base_type<CongruenceCommon>());
+    define_todd_coxeter_type<libsemigroups::word_type>(m, "ToddCoxeterWord");
+    define_todd_coxeter_type<std::string>(m, "ToddCoxeterString");
   }
 
 }  // namespace libsemigroups_julia

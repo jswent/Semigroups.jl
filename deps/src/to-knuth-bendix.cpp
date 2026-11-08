@@ -18,6 +18,7 @@
 
 // CRITICAL: libsemigroups_julia.hpp MUST be included first (fmt consteval fix)
 #include "libsemigroups_julia.hpp"
+#include "presentation-conversion.hpp"
 
 #include <libsemigroups/froidure-pin-base.hpp>
 #include <libsemigroups/knuth-bendix-class.hpp>
@@ -26,25 +27,37 @@
 #include <libsemigroups/types.hpp>
 
 namespace libsemigroups_julia {
-
-  void define_to_knuth_bendix(jl::Module& m) {
-    using KB = libsemigroups::KnuthBendix<libsemigroups::word_type,
-                                          libsemigroups::detail::RewriteTrie,
-                                          libsemigroups::ShortLexCompare>;
-
-    // FroidurePinBase and congruence kind to KnuthBendix<word_type>.
-    m.method("to_knuth_bendix_from_fpb",
-             [](libsemigroups::congruence_kind  knd,
-                libsemigroups::FroidurePinBase& fpb) {
-               return libsemigroups::to<KB>(knd, fpb);
-             });
-
-    // ToddCoxeter and congruence kind to KnuthBendix<word_type>.
-    m.method("to_knuth_bendix_from_tc",
-             [](libsemigroups::congruence_kind                        knd,
-                libsemigroups::ToddCoxeter<libsemigroups::word_type>& tc) {
-               return libsemigroups::to<KB>(knd, tc);
-             });
+  template <typename Word, typename SourceWord>
+  void define_tc_to_kb(jl::Module& m, char const* name) {
+    using KB = libsemigroups::KnuthBendix<Word>;
+    m.method(
+        name,
+        [](libsemigroups::congruence_kind          knd,
+           libsemigroups::ToddCoxeter<SourceWord>& tc) -> jl::BoxedValue<KB> {
+          return jl::create<KB>(knd,
+                                convert_presentation<Word>(tc.presentation()));
+        });
   }
 
+  template <typename Word>
+  void define_to_knuth_bendix_type(jl::Module& m,
+                                   char const* fp_name,
+                                   char const* tc_name) {
+    using KB = libsemigroups::KnuthBendix<Word>;
+    m.method(fp_name,
+             [](libsemigroups::congruence_kind  knd,
+                libsemigroups::FroidurePinBase& fpb) -> jl::BoxedValue<KB> {
+               auto p = froidure_pin_presentation<Word>(fpb);
+               return jl::create<KB>(knd, std::move(p));
+             });
+    define_tc_to_kb<Word, libsemigroups::word_type>(m, tc_name);
+    define_tc_to_kb<Word, std::string>(m, tc_name);
+  }
+
+  void define_to_knuth_bendix(jl::Module& m) {
+    define_to_knuth_bendix_type<libsemigroups::word_type>(
+        m, "to_knuth_bendix_from_fpb", "to_knuth_bendix_from_tc");
+    define_to_knuth_bendix_type<std::string>(
+        m, "to_knuth_bendix_from_fpb_string", "to_knuth_bendix_from_tc_string");
+  }
 }  // namespace libsemigroups_julia

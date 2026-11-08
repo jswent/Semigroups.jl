@@ -21,6 +21,7 @@ using Semigroups
     include("test_word_graph.jl")
     include("test_paths.jl")
     include("test_presentation.jl")
+    include("test_presentation_equality.jl")
     include("test_presentation_examples.jl")
     include("test_word_range.jl")
     include("test_froidure_pin_transf.jl")
@@ -29,4 +30,7 @@ using Semigroups
     include("test_todd_coxeter.jl")
     include("test_kambites.jl")
     include("test_to.jl")
+    include("test_string_presentation.jl")
+    include("test_string_algorithms.jl")
+    include("test_string_utilities.jl")
 end
