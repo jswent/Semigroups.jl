@@ -359,11 +359,15 @@ namespace libsemigroups_julia {
     itype.method("inverses", [](InversePresentation<Word> const& self) -> Word {
       return self.inverses();
     });
-    itype.method("inverse_of",
-                 [](InversePresentation<Word> const& self, Letter x) -> Letter {
-                   return bridge_letter<Word>(
-                       self.inverse(native_letter<Word>(x)));
-                 });
+    itype.method(
+        "inverse_of",
+        [](InversePresentation<Word> const& self, Letter x) -> Letter {
+          // Base-class alphabet edits can leave the inverse map stale.
+          // Native 3.6.1 inverse() indexes that map without bounds checks.
+          libsemigroups::presentation::throw_if_bad_inverses(self,
+                                                             self.inverses());
+          return bridge_letter<Word>(self.inverse(native_letter<Word>(x)));
+        });
     itype.method("throw_if_bad_alphabet_rules_or_inverses",
                  [](InversePresentation<Word> const& self) {
                    self.throw_if_bad_alphabet_rules_or_inverses();

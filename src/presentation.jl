@@ -1366,8 +1366,14 @@ Return the inverse of the letter `x` in `ip`.
 - `x::Union{Integer,AbstractChar}`: the letter whose inverse is sought.
 
 # Throws
-- `LibsemigroupsError`: if no inverses have been set, or if `x` is not
-  in the alphabet of `ip`.
+- `LibsemigroupsError`: if no inverses have been set, if the inverse map is
+  invalid for the current alphabet, or if `x` is not in the alphabet of `ip`.
+
+The inverse map is validated before lookup, including after alphabet edits.
+The presentation's rules are not checked by this operation.
+
+# Complexity
+At worst quadratic in the alphabet size to validate the inverse map.
 
 # Note
 This function mirrors `InversePresentation::inverse` in libsemigroups,

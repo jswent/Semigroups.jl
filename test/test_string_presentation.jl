@@ -186,6 +186,46 @@ using Semigroups
         @test isempty(inverses(numeric))
     end
 
+    @testset "inverse lookup rejects stale maps before native indexing" begin
+        for initial in ("a", [1])
+            strings = initial isa String
+            a, b, c = strings ? ('a', 'b', 'c') : (1, 2, 3)
+            expanded = strings ? "abc" : [1, 2, 3]
+            pair = strings ? "ab" : [1, 2]
+            swapped = strings ? "ba" : [2, 1]
+
+            ip = InversePresentation(Presentation(initial))
+            @test_throws LibsemigroupsError inverse_of(ip, a)
+            set_inverses!(ip, initial)
+            @test inverse_of(ip, a) == a
+            @test_throws LibsemigroupsError inverse_of(ip, b)
+
+            add_generator!(ip, b)
+            @test_throws LibsemigroupsError inverse_of(ip, b)
+            @test_throws LibsemigroupsError inverse_of(ip, a)
+            add_generator!(ip, c)
+            @test_throws LibsemigroupsError inverse_of(ip, c)
+            set_inverses!(ip, expanded)
+            @test inverse_of(ip, c) == c
+
+            ip = InversePresentation(Presentation(initial))
+            set_inverses!(ip, initial)
+            set_alphabet!(ip, expanded)
+            @test_throws LibsemigroupsError inverse_of(ip, c)
+
+            ip = InversePresentation(Presentation(pair))
+            set_inverses!(ip, swapped)
+            remove_generator!(ip, b)
+            @test_throws LibsemigroupsError inverse_of(ip, a)
+
+            ip = InversePresentation(Presentation(initial))
+            set_inverses!(ip, initial)
+            add_rule_no_checks!(ip, strings ? "z" : [26], initial)
+            @test_throws LibsemigroupsError throw_if_bad_rules(ip)
+            @test inverse_of(ip, a) == a
+        end
+    end
+
     @testset "generated alphabets stay in ASCII" begin
         p = Presentation{String}()
         set_alphabet!(p, 3)
