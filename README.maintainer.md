@@ -72,6 +72,18 @@ julia --startup-file=no --project=. -e '
 
 ## Updating just the C++ wrappers
 
+The ASCII string-word implementation adds native template instantiations and
+requires a new `libsemigroups_julia_jll` release before publishing the corresponding
+Semigroups.jl release. The existing wrapper 0.1.3 does not supply these types.
+Follow the sequence below, keeping the wrapper's exact core 3.6.1 compatibility,
+then raise the wrapper minimum in `Project.toml` to the newly registered version.
+Verify the new string tests against that published artifact as well as the local
+development build. The public presentation and congruence types now own native
+objects; direct binding callers must use `Semigroups._native(obj)` or construct
+the low-level types explicitly. Algorithm graph getters return owning snapshots.
+
+OpenAI Codex assisted with the ASCII word implementation, documentation, and tests.
+
 Suppose just the C++ wrappers need to be updated, without any changes to the
 `libsemigroups` kernel itself.
 
